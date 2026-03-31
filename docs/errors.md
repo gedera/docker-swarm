@@ -1,61 +1,56 @@
 # Manejo de Errores
 
-La gema `docker-swarm` traduce los errores de la API de Docker y de red a excepciones de Ruby claras y manejables.
+La gema `docker-swarm` proporciona una jerarquía de excepciones clara para manejar fallos de comunicación, errores de validación de Docker y problemas de negocio.
 
 ## 🏛️ Jerarquía de Excepciones
 
-Todas las excepciones heredan de `DockerSwarm::Errors::Error`.
+Todas las excepciones heredan de `DockerSwarm::Error` y están organizadas jerárquicamente:
 
--   **`Error`**: Clase base para todos los errores de la gema.
--   **`Communication`**: Errores de red o de socket (e.g., el socket no existe o no hay permisos).
--   **`NotFound`**: El recurso solicitado (nodo, servicio, etc.) no existe (HTTP 404).
--   **`Conflict`**: El recurso ya existe o hay un conflicto de versiones (HTTP 409).
--   **`Unauthorized`**: Problemas de permisos con la API de Docker (HTTP 401).
--   **`Server`**: Error interno de la API de Docker (HTTP 500).
+- `DockerSwarm::Error` (Clase base)
+  - `DockerSwarm::Error::BadRequest` (400)
+  - `DockerSwarm::Error::Unauthorized` (401)
+  - `DockerSwarm::Error::Forbidden` (403)
+  - `DockerSwarm::Error::NotFound` (404)
+  - `DockerSwarm::Error::Conflict` (409) - Ej: Nombre de red duplicado.
+  - `DockerSwarm::Error::UnprocessableEntity` (422)
+  - `DockerSwarm::Error::TooManyRequests` (429) - Rate limiting.
+  - `DockerSwarm::Error::InternalServerError` (500)
+  - `DockerSwarm::Error::ServiceUnavailable` (503)
+  - `DockerSwarm::Error::GatewayTimeout` (504)
+  - `DockerSwarm::Error::Communication` - Errores de socket o conexión.
 
----
+> **Nota:** Para mantener la compatibilidad, también puedes acceder a los errores mediante `DockerSwarm::Conflict` o `DockerSwarm::Errors::Conflict`.
 
-## 🛠 Cómo capturar errores
+## 🛠️ Ejemplo de Uso
 
-Se recomienda capturar excepciones específicas para mejorar la experiencia de usuario o la lógica de negocio:
+Es recomendable capturar excepciones específicas para manejar el flujo de la aplicación:
 
 ```ruby
 begin
-  service = DockerSwarm::Service.find("123")
-  service.destroy
-rescue DockerSwarm::Errors::NotFound
-  puts "El servicio ya no existe."
-rescue DockerSwarm::Errors::Communication => e
-  puts "No se pudo conectar con Docker: #{e.message}"
-rescue DockerSwarm::Errors::Error => e
-  puts "Ocurrió un error inesperado: #{e.message}"
+  DockerSwarm::Network.create(Name: "my-net")
+rescue DockerSwarm::Error::Conflict => e
+  puts "La red ya existe, continuando..."
+rescue DockerSwarm::Error::Communication => e
+  puts "Error conectando con Docker: #{e.message}"
+rescue DockerSwarm::Error => e
+  puts "Ocurrió un error inesperado: #{e.class} - #{e.message}"
 end
 ```
 
----
+## 🔍 Detalles en Logs
 
-## 🔄 Mapeo Automático
+Antes de lanzar una excepción de negocio (4xx/5xx), el `ErrorHandler` de la gema registra un evento `business_error` en el log con el siguiente formato:
 
-El middleware `ErrorHandler` se encarga de convertir los códigos de estado HTTP de Docker en excepciones de Ruby:
+`component=docker_swarm.middleware.error_handler event=business_error status=409 message="network with name X already exists" method=post path=/networks/create`
 
-| Código HTTP | Excepción |
-| :--- | :--- |
-| 401 | `DockerSwarm::Errors::Unauthorized` |
-| 404 | `DockerSwarm::Errors::NotFound` |
-| 409 | `DockerSwarm::Errors::Conflict` |
-| 500 | `DockerSwarm::Errors::Server` |
-| Otros 4xx/5xx | `DockerSwarm::Errors::Error` |
+Esto permite diagnosticar problemas rápidamente sin necesidad de inspeccionar el backtrace de la aplicación.
 
----
+## 🔗 Causas Originales
 
-## 🔍 Detalles del Error
-
-Cuando Docker devuelve un error, la gema intenta extraer el mensaje descriptivo del JSON de respuesta para incluirlo en el mensaje de la excepción:
+La gema utiliza el mecanismo de `cause` de Ruby para mantener la trazabilidad. Si un error de `Excon` es envuelto por la gema, puedes acceder al error original:
 
 ```ruby
-begin
-  DockerSwarm::Service.create(Spec: { Name: "nombre_invalido!" })
-rescue DockerSwarm::Errors::Error => e
-  puts e.message # Muestra el mensaje específico de Docker
+rescue DockerSwarm::Error::Communication => e
+  puts e.cause.class # Ej: Excon::Error::Timeout
 end
 ```

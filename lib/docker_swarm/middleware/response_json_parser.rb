@@ -9,16 +9,28 @@ module DockerSwarm
           headers = env[:response][:headers] || {}
 
           if body && !body.empty? && headers["Content-Type"]&.include?("application/json")
-            begin
-              parsed = JSON.parse(body)
-              env[:response][:body] = parsed.is_a?(Hash) ? parsed.with_indifferent_access : parsed
-            rescue JSON::ParserError
-              # Keep original body if parsing fails
-            end
+            env[:response][:body] = parse_json(body)
           end
         end
         
         @stack.response_call(env)
+      end
+
+      private
+
+      def parse_json(body)
+        result = body.is_a?(String) ? JSON.parse(body) : body
+
+        case result
+        when Hash
+          result.with_indifferent_access
+        when Array
+          result.map { |item| item.is_a?(Hash) ? item.with_indifferent_access : item }
+        else
+          result
+        end
+      rescue JSON::ParserError
+        body
       end
     end
   end

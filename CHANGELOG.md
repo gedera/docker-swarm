@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2026-03-31
+
+### Added
+- **Timeouts & Retries:** Added `read_timeout`, `write_timeout`, `connect_timeout`, and `max_retries` to the global configuration.
+- **Robust Encoding:** `RequestEncoder` now supports `application/x-www-form-urlencoded` and `multipart/form-data` payload serialization.
+- **Deep Indifferent Access:** `ResponseJSONParser` now recursively applies `with_indifferent_access` to Arrays, ensuring consistent attribute access in resource listings.
+
 ## [0.2.0] - 2026-03-31
 
 ### Added

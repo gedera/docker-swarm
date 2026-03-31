@@ -3,7 +3,7 @@
 [![Gem Version](https://badge.fury.io/rb/docker-swarm.svg)](https://badge.fury.io/rb/docker-swarm)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-`docker-swarm` es un ORM ligero y cliente API robusto para interactuar con Docker Swarm desde Ruby. Diseñado para sentirse familiar a los desarrolladores de Rails, utiliza `ActiveModel` para ofrecer una interfaz limpia y potente.
+`docker-swarm` es un ORM ligero y cliente API robusto para interactuar con Docker Swarm desde Ruby. Diseñado para sentirse familiar a los desarrolladores de Rails, utiliza `ActiveModel` para ofrecer una interfaz limpia y potente con estándares de observabilidad de Wispro.
 
 ## 🚀 Inicio Rápido
 
@@ -13,42 +13,37 @@ require 'docker_swarm'
 # Configurar (opcional, usa defaults)
 DockerSwarm.configure do |config|
   config.socket_path = "unix:///var/run/docker.sock"
+  config.log_level = Logger::INFO
+  config.read_timeout = 30
+  config.max_retries = 3
 end
 
-# Listar servicios
+# Listar servicios (con soporte para Indifferent Access en arrays)
 services = DockerSwarm::Service.all
-services.each { |s| puts "#{s.ID}: #{s.Spec['Name']}" }
+services.each { |s| puts "#{s.ID}: #{s.Spec[:Name]}" }
 
 # Crear un nuevo servicio
 service = DockerSwarm::Service.create(
+  Name: "my-webapp",
   Spec: {
-    Name: "my-webapp",
     TaskTemplate: {
       ContainerSpec: { Image: "nginx:latest" }
     }
   }
 )
 
-# Obtener logs
+# Obtener logs (stdout y stderr habilitados por defecto)
 puts service.logs
 ```
 
-## 📖 Documentación Completa
-
-Para profundizar en el uso de la gema, consulta las siguientes guías:
-
-1.  **[Guía de Configuración](docs/configuration.md)**: Cómo configurar el socket, logger y opciones globales.
-2.  **[Uso del ORM (Modelos)](docs/models.md)**: Todo sobre el ciclo de vida de los recursos (`Service`, `Node`, `Task`, etc.).
-3.  **[Cliente de API (Bajo Nivel)](docs/api.md)**: Cómo realizar peticiones personalizadas directamente a la API de Docker.
-4.  **[Manejo de Errores](docs/errors.md)**: Jerarquía de excepciones y mapeo de errores de Docker.
-5.  **[Pruebas y Mocking](docs/testing.md)**: Guía para testear tu aplicación sin depender de un socket de Docker real.
-
 ## 🛠 Características Clave
 
+- **Observabilidad Wispro**: Logging estructurado (KV) con `component`, `event`, `source` y `duration_ms` usando reloj monotónico.
+- **Seguridad**: Enmascaramiento automático de secretos (`password`, `token`, etc.) en los logs.
+- **Deep Indifferent Access**: Acceso a atributos mediante símbolos o strings, incluso en resultados de listados (`.all`).
+- **Resiliencia**: Gestión inteligente de timeouts (`read`, `write`, `connect`) y reintentos automáticos para errores de red.
 - **Mapeo PascalCase**: Mantiene la fidelidad con los atributos de Docker (e.g., `s.ID`, `s.Spec`) evitando transformaciones costosas.
 - **ActiveModel Ready**: Soporta validaciones, serialización JSON y comportamientos estándar de modelos Ruby.
-- **Surgical Updates**: Actualizaciones precisas enviando solo el índice de versión y el payload necesario.
-- **Excon Stack**: Basado en `Excon` con middlewares para encoding de peticiones, parseo de respuestas y gestión de errores.
 
 ## 🤝 Contribuir
 

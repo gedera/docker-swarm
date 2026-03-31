@@ -16,12 +16,22 @@ module DockerSwarm
                 level: :debug,
                 data: { method: options[:method], path: options[:path] })
 
-      response = client.request(options)
+      # Combinar opciones por defecto de la gema con las de la petición
+      request_options = {
+        idempotent: true,
+        retry_errors: [Excon::Error::Socket, Excon::Error::Timeout],
+        read_timeout: DockerSwarm.configuration.read_timeout,
+        write_timeout: DockerSwarm.configuration.write_timeout,
+        connect_timeout: DockerSwarm.configuration.connect_timeout,
+        retries: DockerSwarm.configuration.max_retries
+      }.merge(options)
+
+      response = client.request(request_options)
       
       log_event("request_success", 
                 data: { 
-                  method: options[:method], 
-                  path: options[:path], 
+                  method: request_options[:method], 
+                  path: request_options[:path], 
                   status: response.status, 
                   duration_ms: calculate_duration(start_time) 
                 })
