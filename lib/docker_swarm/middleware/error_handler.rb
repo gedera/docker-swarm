@@ -40,7 +40,7 @@ module DockerSwarm
         return unless logger
 
         begin
-          payload = {
+          kv_string = LogHelper.format_kv({
             component: "docker_swarm.middleware.error_handler",
             event: "business_error",
             source: "http",
@@ -48,12 +48,7 @@ module DockerSwarm
             message: message,
             method: env[:method],
             path: env[:path]
-          }
-
-          kv_string = payload.map do |k, v|
-            val = k.to_s =~ /password|token|api_key|auth|secret/i ? "[FILTERED]" : v
-            "#{k}=#{val}"
-          end.join(" ")
+          })
 
           logger.error(kv_string)
         rescue

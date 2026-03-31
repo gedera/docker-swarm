@@ -7,7 +7,7 @@ module DockerSwarm
         if env[:body] && !env[:body].is_a?(String)
           content_type = (env[:headers]["Content-Type"] || env[:headers][:content_type]).to_s
           env[:body] = serialize_body(env[:body], content_type)
-          
+
           if content_type.blank? || content_type.include?("application/json")
             env[:headers]["Content-Type"] ||= "application/json"
           end

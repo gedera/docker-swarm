@@ -19,7 +19,7 @@ RSpec.describe DockerSwarm::Network do
       expect(DockerSwarm::Api).to receive(:request).with(
         hash_including(action: described_class.routes[:create], payload: { "Name" => "my-net", "Driver" => "overlay" })
       ).and_return({ "ID" => "net-123" })
-      
+
       # For reload
       expect(DockerSwarm::Api).to receive(:request).with(
         hash_including(action: described_class.routes[:show], arguments: { id: "net-123" })

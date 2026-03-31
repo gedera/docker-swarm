@@ -12,7 +12,7 @@ RSpec.describe DockerSwarm::Base do
   describe "Attribute Mapping" do
     it "maps PascalCase attributes from Docker to Ruby accessors" do
       model = DummyModel.new("ID" => "123", "Spec" => { "Name" => "Test" }, "CreatedAt" => "2023-01-01")
-      
+
       expect(model.ID).to eq("123")
       expect(model.Spec).to eq({ "Name" => "Test" })
       expect(model.CreatedAt).to eq("2023-01-01")
@@ -26,7 +26,7 @@ RSpec.describe DockerSwarm::Base do
     it "defines accessors dynamically when attributes are assigned" do
       model = DummyModel.new
       model.assign_attributes("NewAttribute" => "Value")
-      
+
       expect(model.NewAttribute).to eq("Value")
       expect(model.respond_to?(:NewAttribute)).to be true
     end
@@ -55,8 +55,8 @@ RSpec.describe DockerSwarm::Base do
 
   describe ".all" do
     it "fetches all items from the API and maps them to model instances" do
-      allow(DockerSwarm::Api).to receive(:request).and_return([{ "ID" => "1" }, { "ID" => "2" }])
-      
+      allow(DockerSwarm::Api).to receive(:request).and_return([ { "ID" => "1" }, { "ID" => "2" } ])
+
       items = DummyModel.all
       expect(items.size).to eq(2)
       expect(items.first).to be_a(DummyModel)
@@ -65,9 +65,9 @@ RSpec.describe DockerSwarm::Base do
 
     it "correctly formats filters for the API" do
       expect(DockerSwarm::Api).to receive(:request).with(
-        hash_including(query_params: { filters: { "name" => ["test"] }.to_json })
+        hash_including(query_params: { filters: { "name" => [ "test" ] }.to_json })
       ).and_return([])
-      
+
       DummyModel.all(name: "test")
     end
   end
@@ -77,14 +77,14 @@ RSpec.describe DockerSwarm::Base do
       expect(DockerSwarm::Api).to receive(:request).with(
         hash_including(arguments: { id: "123" })
       ).and_return({ "ID" => "123" })
-      
+
       model = DummyModel.find("123")
       expect(model.ID).to eq("123")
     end
 
     it "returns nil if the item is not found" do
       allow(DockerSwarm::Api).to receive(:request).and_raise(DockerSwarm::Errors::NotFound)
-      
+
       model = DummyModel.find("missing")
       expect(model).to be_nil
     end

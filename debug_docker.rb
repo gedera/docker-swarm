@@ -7,7 +7,7 @@ begin
   res = conn.request(method: :get, path: "/_ping")
   puts "Status: #{res.status}"
   puts "Body: #{res.body}"
-  
+
   res = conn.request(method: :get, path: "/info")
   info = JSON.parse(res.body)
   puts "Docker ID: #{info['ID']}"

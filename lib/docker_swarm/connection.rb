@@ -11,47 +11,43 @@ module DockerSwarm
 
     def request(options = {})
       start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
-      
-      log_event("request_started", 
+
+      log_event("request_started",
                 level: :debug,
-                data: { method: options[:method], path: options[:path] })
+                data: options.merge(path: options[:path]))
 
       # Combinar opciones por defecto de la gema con las de la petición
       request_options = {
         idempotent: true,
-        retry_errors: [Excon::Error::Socket, Excon::Error::Timeout],
-        read_timeout: DockerSwarm.configuration.read_timeout,
-        write_timeout: DockerSwarm.configuration.write_timeout,
-        connect_timeout: DockerSwarm.configuration.connect_timeout,
-        retries: DockerSwarm.configuration.max_retries
+        retry_errors: [ Excon::Error::Socket, Excon::Error::Timeout ],
+        read_timeout: DockerSwarm.configuration.read_timeout.to_f,
+        write_timeout: DockerSwarm.configuration.write_timeout.to_f,
+        connect_timeout: DockerSwarm.configuration.connect_timeout.to_f,
+        retries: DockerSwarm.configuration.max_retries.to_i
       }.merge(options)
 
       response = client.request(request_options)
-      
-      log_event("request_success", 
-                data: { 
-                  method: request_options[:method], 
-                  path: request_options[:path], 
-                  status: response.status, 
-                  duration_ms: calculate_duration(start_time) 
-                })
-      
+
+      log_event("request_success",
+                data: options.merge(
+                  status: response.status,
+                  duration_ms: calculate_duration(start_time)
+                ))
+
       response.body
     rescue => e
       # Excon suele envolver excepciones de middleware en Excon::Error::Socket.
       # Intentamos recuperar la causa original si es una de nuestras excepciones.
       actual_error = (e.respond_to?(:cause) && e.cause&.class&.name&.include?("DockerSwarm::Error")) ? e.cause : e
-      
-      log_event("request_failure", 
+
+      log_event("request_failure",
                 level: :error,
-                data: { 
-                  method: options[:method], 
-                  path: options[:path], 
+                data: options.merge(
                   error: actual_error.class.name,
                   message: actual_error.message,
-                  duration_ms: calculate_duration(start_time) 
-                })
-                
+                  duration_ms: calculate_duration(start_time)
+                ))
+
       if actual_error.class.name.include?("DockerSwarm::Error")
         raise actual_error
       elsif actual_error.is_a?(Excon::Error::Socket)
@@ -69,20 +65,11 @@ module DockerSwarm
       return if level == :debug && logger.level > Logger::DEBUG
 
       log_block = proc do
-        begin
-          payload = {
-            component: "docker_swarm.connection",
-            event: event,
-            source: "http"
-          }.merge(data)
-
-          payload.map do |k, v|
-            val = k.to_s =~ /password|token|api_key|auth|secret/i ? "[FILTERED]" : v
-            "#{k}=#{val}"
-          end.join(" ")
-        rescue
-          "component=docker_swarm.connection event=logging_error"
-        end
+        LogHelper.format_kv({
+          component: "docker_swarm.connection",
+          event: event,
+          source: "http"
+        }.merge(data))
       end
 
       if level == :debug
@@ -109,9 +96,9 @@ module DockerSwarm
 
     def client
       debug_enabled = logger&.level == Logger::DEBUG
-      
-      options = { 
-        middlewares: common_middlewares, 
+
+      options = {
+        middlewares: common_middlewares,
         logger: logger,
         debug_request: debug_enabled,
         debug_response: debug_enabled,
@@ -121,9 +108,9 @@ module DockerSwarm
 
       @client ||= if socket_path.start_with?("unix://")
                     Excon.new("unix:///", options.merge(socket: socket_path.sub(/^unix:\/\//, "")))
-                  else
+      else
                     Excon.new(socket_path, options)
-                  end
+      end
     end
   end
 end

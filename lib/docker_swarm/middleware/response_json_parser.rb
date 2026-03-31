@@ -12,7 +12,7 @@ module DockerSwarm
             env[:response][:body] = parse_json(body)
           end
         end
-        
+
         @stack.response_call(env)
       end
 

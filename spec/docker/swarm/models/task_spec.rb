@@ -7,7 +7,7 @@ RSpec.describe DockerSwarm::Task do
   let(:task) { described_class.new(valid_attributes) }
 
   it "can be fetched with all" do
-    allow(DockerSwarm::Api).to receive(:request).and_return([valid_attributes])
+    allow(DockerSwarm::Api).to receive(:request).and_return([ valid_attributes ])
     tasks = described_class.all
     expect(tasks.first).to be_a(described_class)
     expect(tasks.first.ID).to eq("task-123")
@@ -18,7 +18,7 @@ RSpec.describe DockerSwarm::Task do
       expect(DockerSwarm::Api).to receive(:request).with(
         hash_including(action: described_class.routes[:logs], arguments: { id: "task-123" })
       ).and_return("task logs")
-      
+
       expect(task.logs).to eq("task logs")
     end
   end

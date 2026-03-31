@@ -32,7 +32,7 @@ RSpec.describe "DockerSwarm Services Integration", type: :integration do
         TaskTemplate: {
           ContainerSpec: {
             Image: "alpine:latest",
-            Args: ["sleep", "3600"]
+            Args: [ "sleep", "3600" ]
           }
         },
         Mode: {
@@ -69,7 +69,7 @@ RSpec.describe "DockerSwarm Services Integration", type: :integration do
           TaskTemplate: {
             ContainerSpec: {
               Image: "alpine:latest",
-              Args: ["sleep", "7200"]
+              Args: [ "sleep", "7200" ]
             }
           }
         }
@@ -103,7 +103,7 @@ RSpec.describe "DockerSwarm Services Integration", type: :integration do
         TaskTemplate: {
           ContainerSpec: {
             Image: "alpine:latest",
-            Args: ["echo", "hello world"]
+            Args: [ "echo", "hello world" ]
           }
         }
       }
@@ -123,7 +123,7 @@ RSpec.describe "DockerSwarm Services Integration", type: :integration do
         expect(found_tasks).not_to be_empty
         task = found_tasks.first
         expect(task.ID).to be_present
-        
+
         # Wait for task to finish to have logs
         sleep 2
         logs = task.logs

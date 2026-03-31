@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2026-03-31
+
+### Added
+- **Automated Updates:** Configured Dependabot for weekly gem and monthly GitHub Actions updates.
+- **Linting & Quality:** Integrated `rubocop-rails-omakase` and added RuboCop verification to CI.
+- **Robust Infrastructure Tests:** Added comprehensive unit tests for `Connection`, `Configuration`, and all Middlewares.
+- **Documentation:** Added YARD documentation to all models and core components.
+- **Developer Experience:** Implemented `Inspectable` concern for cleaner object inspection in console (ID, Name, Image focus).
+
+### Changed
+- **Performance:** Implemented accessor memoization in `Base` to optimize resource processing.
+- **Architecture:** Refactored logs logic into `Concerns::Loggable` to maintain DRY code across `Service`, `Task`, and `Container`.
+- **CI Workflow:** Renamed default branch from `master` to `main`.
+
+### Fixed
+- **Type Safety:** Added automatic casting for timeout and retry configuration values to prevent `TypeError` when using ENV variables.
+- **Load Order:** Fixed initialization issues by reorganizing the gem's internal load order and entry points.
+
 ## [0.3.0] - 2026-03-31
 
 ### Added

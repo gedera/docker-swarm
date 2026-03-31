@@ -1,0 +1,21 @@
+inherit_gem:
+  rubocop-rails-omakase: rubocop.yml
+
+AllCops:
+  TargetRubyVersion: 3.4.4
+  Exclude:
+    - 'bin/**/*'
+    - 'vendor/**/*'
+    - 'spec/fixtures/**/*'
+    - 'Gemfile'
+    - 'Gemfile.lock'
+    - 'docker-swarm.gemspec'
+
+Style/Documentation:
+  Enabled: false # Desactivado por ahora para evitar ruido masivo, habilitar según se complete YARD
+
+# Personalizaciones específicas para seguir los PascalCase de Docker
+Naming/MethodName:
+  Exclude:
+    - 'lib/docker_swarm/base.rb'
+    - 'lib/docker_swarm/models/**/*'

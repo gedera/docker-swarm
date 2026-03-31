@@ -1,9 +1,9 @@
 # frozen_string_literal: true
 
 module DockerSwarm
+  # Represents a Docker Swarm Task
+  # @see https://docs.docker.com/engine/api/v1.41/#tag/Task
   class Task < Base
-    def logs(query_params = { stdout: 1, stderr: 1 })
-      Api.request(action: self.class.routes[:logs], arguments: { id: self.ID }, query_params: query_params)
-    end
+    include Concerns::Loggable
   end
 end

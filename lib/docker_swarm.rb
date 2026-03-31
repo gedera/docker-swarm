@@ -6,6 +6,7 @@ require "active_model"
 require "excon"
 require "json"
 require "logger"
+require "set"
 
 module DockerSwarm
   class << self
@@ -14,11 +15,11 @@ module DockerSwarm
     def configure
       @configuration ||= Configuration.new
       yield(@configuration) if block_given?
-      
+
       if @configuration.logger.respond_to?(:level=)
         @configuration.logger.level = @configuration.log_level
       end
-      
+
       @connection = nil
     end
 
@@ -35,6 +36,7 @@ end
 
 # Primero cargamos la configuración porque la clase DockerSwarm la usa arriba
 require_relative "docker_swarm/configuration"
+require_relative "docker_swarm/log_helper"
 require_relative "docker_swarm/version"
 require_relative "docker_swarm/errors"
 require_relative "docker_swarm/middleware/request_encoder"
@@ -42,10 +44,15 @@ require_relative "docker_swarm/middleware/response_json_parser"
 require_relative "docker_swarm/middleware/error_handler"
 require_relative "docker_swarm/connection"
 require_relative "docker_swarm/api"
-require_relative "docker_swarm/base"
+
+# Concerns deben cargarse antes que Base si Base los incluye
 require_relative "docker_swarm/concerns/creatable"
 require_relative "docker_swarm/concerns/updatable"
 require_relative "docker_swarm/concerns/deletable"
+require_relative "docker_swarm/concerns/loggable"
+require_relative "docker_swarm/concerns/inspectable"
+
+require_relative "docker_swarm/base"
 
 # Models
 require_relative "docker_swarm/models/swarm"

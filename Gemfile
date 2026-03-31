@@ -4,9 +4,13 @@ source "https://rubygems.org"
 
 gemspec
 
-group :test do
+group :development, :test do
   gem "rspec"
   gem "pry"
+  gem "rubocop-rails-omakase", require: false
+end
+
+group :test do
   gem "activemodel"
   gem "activesupport"
   gem "excon"

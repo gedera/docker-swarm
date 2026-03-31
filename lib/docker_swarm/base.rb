@@ -3,10 +3,17 @@
 module DockerSwarm
   class Base
     include ActiveModel::Model
+    include Concerns::Inspectable
 
     class << self
       def resource_name
         name.demodulize.downcase.pluralize
+      end
+
+      # Cache of attributes already defined for this class
+      # @return [Set]
+      def defined_attributes
+        @defined_attributes ||= Set.new([ :validation_context, :errors, :context_for_validation ])
       end
 
       def routes
@@ -156,8 +163,10 @@ module DockerSwarm
     private
 
     def _define_dynamic_accessor(key)
-      return if self.class.method_defined?("#{key}=")
+      return if self.class.defined_attributes.include?(key.to_sym)
+
       self.class.send(:attr_accessor, key)
+      self.class.defined_attributes.add(key.to_sym)
     end
 
     def _valid_attribute_name?(name)

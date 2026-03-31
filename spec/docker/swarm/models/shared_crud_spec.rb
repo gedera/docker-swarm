@@ -44,7 +44,7 @@ RSpec.shared_examples "a crud resource" do |resource_class, resource_name, valid
     it "fetches all #{resource_name.pluralize}" do
       expect(DockerSwarm::Api).to receive(:request).with(
         hash_including(action: resource_class.routes[:index])
-      ).and_return([attributes])
+      ).and_return([ attributes ])
 
       resources = resource_class.all
       expect(resources.first).to be_a(resource_class)
@@ -67,6 +67,6 @@ RSpec.describe "Shared CRUD Models" do
   end
 
   describe DockerSwarm::Image do
-    it_behaves_like "a crud resource", described_class, "image", { RepoTags: ["nginx:latest"] }
+    it_behaves_like "a crud resource", described_class, "image", { RepoTags: [ "nginx:latest" ] }
   end
 end
