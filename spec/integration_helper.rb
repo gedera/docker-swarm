@@ -17,8 +17,8 @@ RSpec.configure do |config|
 
   config.before(:suite) do
     DockerSwarm.configure do |swarm_config|
-      # Ruta exacta proporcionada por el usuario
-      swarm_config.socket_path = "/var/run/docker.sock"
+      # Usar el default de la gema o permitir override por ENV
+      swarm_config.socket_path = ENV.fetch("DOCKER_URL", "unix:///var/run/docker.sock")
       swarm_config.logger = Logger.new("/dev/null")
     end
   end

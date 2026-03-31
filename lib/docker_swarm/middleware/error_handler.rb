@@ -9,30 +9,57 @@ module DockerSwarm
         status = env[:response][:status]
         body = env[:response][:body]
 
-        case status
-        when 200..299
-          # Continuar normalmente
-        when 400 then raise Errors::BadRequest, error_message(body)
-        when 401 then raise Errors::Unauthorized, error_message(body)
-        when 403 then raise Errors::Forbidden, error_message(body)
-        when 404 then raise Errors::NotFound, error_message(body)
-        when 406 then raise Errors::NotAcceptable, error_message(body)
-        when 408 then raise Errors::RequestTimeout, error_message(body)
-        when 409 then raise Errors::Conflict, error_message(body)
-        when 422 then raise Errors::UnprocessableEntity, body
-        when 429 then raise Errors::TooManyRequests, error_message(body)
-        when 500 then raise Errors::InternalServerError, error_message(body)
-        when 502 then raise Errors::BadGateway, error_message(body)
-        when 503 then raise Errors::ServiceUnavailable, error_message(body)
-        when 504 then raise Errors::GatewayTimeout, error_message(body)
-        else
-          raise Errors::Error, "HTTP #{status}: #{error_message(body)}"
-        end
+        return @stack.response_call(env) if (200..299).include?(status)
 
-        @stack.response_call(env)
+        error_msg = error_message(body)
+        log_business_error(env, status, error_msg)
+
+        case status
+        when 400 then raise ::DockerSwarm::BadRequest, error_msg
+        when 401 then raise ::DockerSwarm::Unauthorized, error_msg
+        when 403 then raise ::DockerSwarm::Forbidden, error_msg
+        when 404 then raise ::DockerSwarm::NotFound, error_msg
+        when 406 then raise ::DockerSwarm::NotAcceptable, error_msg
+        when 408 then raise ::DockerSwarm::RequestTimeout, error_msg
+        when 409 then raise ::DockerSwarm::Conflict, error_msg
+        when 422 then raise ::DockerSwarm::UnprocessableEntity, body
+        when 429 then raise ::DockerSwarm::TooManyRequests, error_msg
+        when 500 then raise ::DockerSwarm::InternalServerError, error_msg
+        when 502 then raise ::DockerSwarm::BadGateway, error_msg
+        when 503 then raise ::DockerSwarm::ServiceUnavailable, error_msg
+        when 504 then raise ::DockerSwarm::GatewayTimeout, error_msg
+        else
+          raise ::DockerSwarm::Error, "HTTP #{status}: #{error_msg}"
+        end
       end
 
       private
+
+      def log_business_error(env, status, message)
+        logger = env[:logger]
+        return unless logger
+
+        begin
+          payload = {
+            component: "docker_swarm.middleware.error_handler",
+            event: "business_error",
+            source: "http",
+            status: status,
+            message: message,
+            method: env[:method],
+            path: env[:path]
+          }
+
+          kv_string = payload.map do |k, v|
+            val = k.to_s =~ /password|token|api_key|auth|secret/i ? "[FILTERED]" : v
+            "#{k}=#{val}"
+          end.join(" ")
+
+          logger.error(kv_string)
+        rescue
+          # Resilience: logging should not crash the app
+        end
+      end
 
       def error_message(body)
         if body.is_a?(Hash)

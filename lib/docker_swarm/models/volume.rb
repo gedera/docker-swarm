@@ -5,12 +5,8 @@ module DockerSwarm
     include Concerns::Creatable
     include Concerns::Deletable
 
-    def self.all(filters = {})
-      response = _fetch_all(filters)
-      return [] if response.blank?
-      
-      data = response.is_a?(Hash) ? response["Volumes"] : response
-      Array(data).map { |item| new(item) }
+    def self.root_key
+      "Volumes"
     end
   end
 end

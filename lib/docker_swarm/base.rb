@@ -13,8 +13,19 @@ module DockerSwarm
         Api::ENDPOINTS[resource_name.to_sym]
       end
 
+      # Key in the JSON response that contains the array of items.
+      # Override in subclasses if the API returns a wrapped object (e.g., Volumes).
+      # @return [String, nil]
+      def root_key
+        nil
+      end
+
       def all(filters = {})
-        _fetch_all(filters).map { |data| new(data) }
+        response = _fetch_all(filters)
+        return [] if response.blank?
+
+        data = root_key && response.is_a?(Hash) ? response[root_key] : response
+        Array(data).map { |item| new(item) }
       end
 
       def find(id)
