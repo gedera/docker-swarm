@@ -1,29 +1,32 @@
 # Manejo de Errores
 
-La gema `docker-swarm` proporciona una jerarquía de excepciones clara para manejar fallos de comunicación, errores de validación de Docker y problemas de negocio.
+La gema `docker-swarm` proporciona una jerarquia de excepciones clara para manejar fallos de comunicacion, errores de validacion de Docker y problemas de negocio.
 
-## 🏛️ Jerarquía de Excepciones
+## Jerarquia de Excepciones
 
-Todas las excepciones heredan de `DockerSwarm::Error` y están organizadas jerárquicamente:
+Todas las excepciones heredan de `DockerSwarm::Error` y estan organizadas jerarquicamente:
 
 - `DockerSwarm::Error` (Clase base)
-  - `DockerSwarm::Error::BadRequest` (400)
-  - `DockerSwarm::Error::Unauthorized` (401)
-  - `DockerSwarm::Error::Forbidden` (403)
-  - `DockerSwarm::Error::NotFound` (404)
-  - `DockerSwarm::Error::Conflict` (409) - Ej: Nombre de red duplicado.
-  - `DockerSwarm::Error::UnprocessableEntity` (422)
+  - `DockerSwarm::Error::BadRequest` (400) - Payload malformado o parametros invalidos.
+  - `DockerSwarm::Error::Unauthorized` (401) - Credenciales invalidas (TLS).
+  - `DockerSwarm::Error::Forbidden` (403) - Permisos insuficientes.
+  - `DockerSwarm::Error::NotFound` (404) - Recurso no existe.
+  - `DockerSwarm::Error::NotAcceptable` (406) - Formato de respuesta no aceptable.
+  - `DockerSwarm::Error::RequestTimeout` (408) - Daemon tardo demasiado.
+  - `DockerSwarm::Error::Conflict` (409) - Nombre duplicado o recurso en uso.
+  - `DockerSwarm::Error::UnprocessableEntity` (422) - Payload semanticamente invalido.
   - `DockerSwarm::Error::TooManyRequests` (429) - Rate limiting.
-  - `DockerSwarm::Error::InternalServerError` (500)
-  - `DockerSwarm::Error::ServiceUnavailable` (503)
-  - `DockerSwarm::Error::GatewayTimeout` (504)
-  - `DockerSwarm::Error::Communication` - Errores de socket o conexión.
+  - `DockerSwarm::Error::InternalServerError` (500) - Error interno de Docker.
+  - `DockerSwarm::Error::BadGateway` (502) - Proxy entre cliente y daemon fallo.
+  - `DockerSwarm::Error::ServiceUnavailable` (503) - Daemon reiniciando.
+  - `DockerSwarm::Error::GatewayTimeout` (504) - Timeout en proxy intermedio.
+  - `DockerSwarm::Error::Communication` - Errores de socket o conexion.
 
-> **Nota:** Para mantener la compatibilidad, también puedes acceder a los errores mediante `DockerSwarm::Conflict` o `DockerSwarm::Errors::Conflict`.
+> **Nota:** Tambien puedes acceder a los errores con aliases directos: `DockerSwarm::Conflict`, `DockerSwarm::NotFound`, etc. o via modulo: `DockerSwarm::Errors::Conflict`.
 
-## 🛠️ Ejemplo de Uso
+## Ejemplo de Uso
 
-Es recomendable capturar excepciones específicas para manejar el flujo de la aplicación:
+Es recomendable capturar excepciones especificas para manejar el flujo de la aplicacion:
 
 ```ruby
 begin
@@ -37,15 +40,15 @@ rescue DockerSwarm::Error => e
 end
 ```
 
-## 🔍 Detalles en Logs
+## Detalles en Logs
 
-Antes de lanzar una excepción de negocio (4xx/5xx), el `ErrorHandler` de la gema registra un evento `business_error` en el log con el siguiente formato:
+Antes de lanzar una excepcion de negocio (4xx/5xx), el `ErrorHandler` de la gema registra un evento `business_error` en el log con el siguiente formato:
 
 `component=docker_swarm.middleware.error_handler event=business_error status=409 message="network with name X already exists" method=post path=/networks/create`
 
-Esto permite diagnosticar problemas rápidamente sin necesidad de inspeccionar el backtrace de la aplicación.
+Esto permite diagnosticar problemas rapidamente sin necesidad de inspeccionar el backtrace de la aplicacion.
 
-## 🔗 Causas Originales
+## Causas Originales
 
 La gema utiliza el mecanismo de `cause` de Ruby para mantener la trazabilidad. Si un error de `Excon` es envuelto por la gema, puedes acceder al error original:
 
@@ -54,3 +57,7 @@ rescue DockerSwarm::Error::Communication => e
   puts e.cause.class # Ej: Excon::Error::Timeout
 end
 ```
+
+---
+
+Ver tambien: [Modelos (ORM)](models.md) para el manejo graceful de 404 en `find` y `destroy` | [Testing](testing.md) para mockear errores en tus tests.

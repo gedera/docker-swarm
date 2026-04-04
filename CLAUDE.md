@@ -1,24 +1,35 @@
-# Docker Swarm Gem - Development Guide
+# DockerSwarm — Project Intelligence
 
-## Build & Test Commands
-- **Install dependencies**: `bundle install`
-- **Run tests**: `bundle exec rspec`
-- **Run linter**: `bundle exec rubocop`
-- **Auto-fix lint issues**: `bundle exec rubocop -A`
-- **Build gem**: `gem build docker-swarm.gemspec`
+## ¿Qué es DockerSwarm?
 
-## Architectural Standards
-- **Naming**: Use `DockerSwarm` as the root namespace.
-- **Attributes**: Docker returns attributes in `PascalCase` (e.g. `Spec`, `Version`). Maintain this in the ORM for direct mapping.
-- **ORM Pattern**: Inherit from `DockerSwarm::Base` for resources. Include concerns `Creatable`, `Updatable`, `Deletable` as needed.
-- **API Pattern**: Define endpoints in `DockerSwarm::Api::ENDPOINTS` and use `Api.request`.
-- **Communication**: Use the internal `Excon` stack with middlewares (request encoder, response parser, error handler).
+TODO
 
-## Error Handling
-- Use internal exceptions defined in `DockerSwarm::Errors`.
-- Avoid leaking raw `Excon` or `JSON` errors; wrap them in `DockerSwarm::Error`.
+## Knowledge Base
+- Las skills en `.agents/skills/` incluyen conocimiento de dependencias.
+- Leer la skill de una dependencia ANTES de responder sobre ella.
+- Rebuild: `ruby .agents/skills/skill-manager/scripts/sync.rb`
 
-## Code Style
-- Follow RuboCop defaults defined in the project.
-- Use YARD for documenting methods and params.
-- Prefer `&.` for safe navigation.
+### Entorno
+- Versión de Ruby: leer `.ruby-version`
+- Versión de Rails y gemas: leer `Gemfile.lock`
+- Gestor de Ruby: chruby (no usar rvm ni rbenv)
+- Package manager: Bundler
+
+### RuboCop
+- Usamos rubocop-rails-omakase como base.
+- Correr `bundle exec rubocop -a` antes de commitear.
+- No deshabilitar cops sin justificación en el PR.
+
+### YARD
+- Documentación incremental: si tocás un método, documentalo con YARD.
+- Consultar la skill `yard` para tags y tipos correctos.
+- Verificar cobertura: `bundle exec yard stats --list-undoc`
+
+### Testing
+- Framework: RSpec
+- Correr: `bundle exec rspec`
+- Todo código nuevo debe tener tests.
+
+### Releases o Nuevas versiones
+- Gemas: `/gem-release`
+- Servicios: `/service-release build` o `/service-release deploy`

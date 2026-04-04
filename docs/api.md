@@ -1,8 +1,8 @@
 # Cliente de API (Bajo Nivel)
 
-Si necesitas acceder a una funcionalidad de la API de Docker que no esté cubierta por el ORM, puedes usar el cliente de bajo nivel.
+Si necesitas acceder a una funcionalidad de la API de Docker que no este cubierta por el ORM, puedes usar el cliente de bajo nivel. Para la mayoria de operaciones, se recomienda usar los [Modelos (ORM)](models.md) en su lugar.
 
-## 📡 `Api.request`
+## `Api.request`
 
 Este es el punto de entrada principal para todas las peticiones. La gema utiliza `Excon` con un stack de middlewares optimizado para Docker.
 
@@ -24,7 +24,7 @@ response = DockerSwarm::Api.request(
 
 ---
 
-## 🧬 Encodings Soportados
+## Encodings Soportados
 
 El `RequestEncoder` detecta automáticamente el formato necesario basándose en el header `Content-Type`:
 
@@ -34,9 +34,9 @@ El `RequestEncoder` detecta automáticamente el formato necesario basándose en 
 
 ---
 
-## 🕒 Gestión de Timeouts y Reintentos
+## Timeouts y Reintentos
 
-Las peticiones utilizan los valores globales de `DockerSwarm.configuration`, pero pueden ser sobrescritos por llamada:
+Las peticiones utilizan los valores globales de [configuracion](configuration.md), pero pueden ser sobrescritos por llamada:
 
 ```ruby
 DockerSwarm::Api.request(
@@ -48,20 +48,20 @@ DockerSwarm::Api.request(
 
 ---
 
-## 🔄 Middleware Stack
+## Middleware Stack
 
-La comunicación con Docker utiliza los siguientes middlewares:
+La comunicacion con Docker utiliza los siguientes middlewares:
 
-1.  **`Idempotent` & `Instrumentor`**: Gestión nativa de Excon para reintentos y logs.
-2.  **`RequestEncoder`**: Serialización inteligente del cuerpo.
+1.  **`Idempotent` & `Instrumentor`**: Gestion nativa de Excon para reintentos y logs.
+2.  **`RequestEncoder`**: Serializacion inteligente del cuerpo.
 3.  **`ResponseJSONParser`**: Parsea JSON y aplica `Deep Indifferent Access`.
-4.  **`ErrorHandler`**: Registro de `business_error` y mapeo a excepciones `DockerSwarm::Error`.
+4.  **`ErrorHandler`**: Registro de `business_error` y mapeo a excepciones tipadas. Ver [Manejo de Errores](errors.md).
 
 ---
 
-## 🛠 Peticiones Personalizadas
+## Peticiones Personalizadas
 
-Puedes saltar la capa de `Api` y hablar directamente con el cliente de conexión:
+Puedes saltar la capa de `Api` y hablar directamente con el cliente de conexion:
 
 ```ruby
 DockerSwarm.request(

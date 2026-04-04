@@ -1,8 +1,8 @@
-# Guía de Configuración
+# Guia de Configuracion
 
-La gema `docker-swarm` está diseñada para funcionar con defaults razonables, pero permite una configuración flexible adaptada a los estándares de producción de Wispro.
+La gema `docker-swarm` esta diseñada para funcionar con defaults razonables, pero permite una configuracion flexible adaptada a los estandares de produccion de Wispro.
 
-## ⚙️ Configuración Global
+## Configuracion Global
 
 Utiliza `DockerSwarm.configure` para ajustar los parámetros principales:
 
@@ -37,7 +37,7 @@ end
 
 ---
 
-## 🏗️ Uso en Wispro / Rails
+## Uso en Wispro / Rails
 
 Lo ideal es configurar la gema en un initializer (`config/initializers/docker_swarm.rb`):
 
@@ -50,7 +50,7 @@ DockerSwarm.configure do |config|
 end
 ```
 
-## 🔍 Observabilidad
+## Observabilidad
 
 La gema genera logs estructurados en formato Key-Value (KV) para facilitar el parseo por herramientas de monitorización. Estos logs incluyen automáticamente:
 
@@ -66,8 +66,12 @@ La gema protege automáticamente la información sensible. Cualquier llave en lo
 
 ---
 
-## 🚦 Ejemplos por Plataforma
+## Ejemplos por Plataforma
 
 - **macOS**: `unix:///var/run/docker.sock`
 - **Linux**: `unix:///var/run/docker.sock`
-- **Remote Docker (TCP)**: `http://1.2.3.4:2375` (asegúrate de que el puerto esté abierto en el daemon)
+- **Remote Docker (TCP)**: `http://1.2.3.4:2375` (asegurate de que el puerto este abierto en el daemon)
+
+---
+
+Ver tambien: [Modelos (ORM)](models.md) para comenzar a usar la gema | [Manejo de Errores](errors.md) para la jerarquia de excepciones | [Testing](testing.md) para configuracion de tests.

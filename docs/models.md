@@ -1,8 +1,8 @@
 # Uso del ORM (Modelos)
 
-La gema `docker-swarm` proporciona una capa de abstracción sobre la API de Docker Swarm, permitiéndote interactuar con los recursos del cluster como si fueran objetos Ruby estándar.
+La gema `docker-swarm` proporciona una capa de abstraccion sobre la API de Docker Swarm, permitiendote interactuar con los recursos del cluster como si fueran objetos Ruby estandar.
 
-## 🏛️ Conceptos Base
+## Conceptos Base
 
 Todos los modelos heredan de `DockerSwarm::Base` y están integrados con `ActiveModel`.
 
@@ -21,7 +21,7 @@ Si Docker añade nuevos campos a la respuesta JSON, la gema los expondrá autom�
 
 ---
 
-## 🔄 Ciclo de Vida de los Recursos
+## Ciclo de Vida de los Recursos
 
 ### Listado y Búsqueda
 - **`.all(filters = {})`**: Lista todos los recursos.
@@ -51,7 +51,7 @@ network.update(Labels: { env: "prod" })
 
 ---
 
-## 📦 Guía de Modelos Específicos
+## Guia de Modelos Especificos
 
 | Modelo | Concerns Incluidos | Métodos Adicionales |
 | :--- | :--- | :--- |
@@ -67,7 +67,7 @@ network.update(Labels: { env: "prod" })
 | `Swarm` | - | `.show` |
 | `System` | - | `.info`, `.version`, `.up`, `.df` |
 
-### 📋 Obtención de Logs
+### Obtencion de Logs
 El método `#logs` ha sido estandarizado a nivel de instancia en `Service`, `Task` y `Container`. Por defecto, solicita tanto `stdout` como `stderr`.
 
 ```ruby
@@ -75,8 +75,8 @@ service = DockerSwarm::Service.find("abc")
 puts service.logs(stdout: 1, stderr: 0) # Solo salida estándar
 ```
 
-### 🛰️ Swarm y System
-`Swarm` y `System` ahora heredan de `Base`, permitiendo acceder a sus atributos de forma dinámica:
+### Swarm y System
+`Swarm` y `System` heredan de `Base`, permitiendo acceder a sus atributos de forma dinamica:
 
 ```ruby
 info = DockerSwarm::System.info
@@ -85,3 +85,7 @@ puts info["Swarm"]["LocalNodeState"] # => "active"
 swarm = DockerSwarm::Swarm.show
 puts swarm["ID"]
 ```
+
+---
+
+Ver tambien: [Configuracion](configuration.md) para opciones de conexion y timeouts | [Manejo de Errores](errors.md) para excepciones en operaciones CRUD | [Testing](testing.md) para mockear modelos en tus tests.

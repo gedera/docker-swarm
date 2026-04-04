@@ -2,58 +2,72 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.0] - 2026-04-04
+
+### Nuevas funcionalidades
+- Skill de conocimiento empaquetada (`skill/`) para consumo via `skill-manager sync` — @Gabriel
+- Helper de testing documentado (`DockerSwarmHelpers`) con `stub_docker_find` y `stub_docker_list` — @Claude
+
+### Mejoras internas
+- README reescrito con instalación, más ejemplos de uso, y sección Documentación linkeando a `docs/` — @Claude
+- `docs/testing.md` reescrito: mockeo de CRUD, errores, helper reutilizable — @Claude
+- `docs/errors.md` completado con errores faltantes (NotAcceptable 406, RequestTimeout 408, BadGateway 502) — @Claude
+- Cross-references bidireccionales entre todos los docs — @Claude
+- Centralización de logging en `LogHelper` con masking de campo `Data` para Secret/Config — @Gabriel
+- Gemspec actualizado para empaquetar `skill/**/*` en el `.gem` — @Claude
+
 ## [0.4.0] - 2026-03-31
 
-### Added
-- **Automated Updates:** Configured Dependabot for weekly gem and monthly GitHub Actions updates.
-- **Linting & Quality:** Integrated `rubocop-rails-omakase` and added RuboCop verification to CI.
-- **Robust Infrastructure Tests:** Added comprehensive unit tests for `Connection`, `Configuration`, and all Middlewares.
-- **Documentation:** Added YARD documentation to all models and core components.
-- **Developer Experience:** Implemented `Inspectable` concern for cleaner object inspection in console (ID, Name, Image focus).
+### Nuevas funcionalidades
+- Dependabot configurado para actualizaciones semanales de gemas y mensuales de GitHub Actions — @Gabriel
+- Integración de `rubocop-rails-omakase` y verificación RuboCop en CI — @Gabriel
+- Tests de infraestructura robustos para `Connection`, `Configuration` y Middlewares — @Gabriel
+- Documentación YARD en todos los modelos y componentes core — @Gabriel
+- Concern `Inspectable` para inspección legible en consola (ID, Name, Image) — @Gabriel
 
-### Changed
-- **Performance:** Implemented accessor memoization in `Base` to optimize resource processing.
-- **Architecture:** Refactored logs logic into `Concerns::Loggable` to maintain DRY code across `Service`, `Task`, and `Container`.
-- **CI Workflow:** Renamed default branch from `master` to `main`.
+### Mejoras internas
+- Memoización de accessors en `Base` para optimizar procesamiento de recursos — @Gabriel
+- Refactor de logs a `Concerns::Loggable` para DRY en Service, Task y Container — @Gabriel
+- Branch default renombrado de `master` a `main` — @Gabriel
 
-### Fixed
-- **Type Safety:** Added automatic casting for timeout and retry configuration values to prevent `TypeError` when using ENV variables.
-- **Load Order:** Fixed initialization issues by reorganizing the gem's internal load order and entry points.
+### Correcciones
+- Casting automático de timeouts y retries para prevenir `TypeError` con ENV variables — @Gabriel
+- Orden de carga interno reorganizado para resolver issues de inicialización — @Gabriel
 
 ## [0.3.0] - 2026-03-31
 
-### Added
-- **Timeouts & Retries:** Added `read_timeout`, `write_timeout`, `connect_timeout`, and `max_retries` to the global configuration.
-- **Robust Encoding:** `RequestEncoder` now supports `application/x-www-form-urlencoded` and `multipart/form-data` payload serialization.
-- **Deep Indifferent Access:** `ResponseJSONParser` now recursively applies `with_indifferent_access` to Arrays, ensuring consistent attribute access in resource listings.
+### Nuevas funcionalidades
+- Timeouts y retries configurables: `read_timeout`, `write_timeout`, `connect_timeout`, `max_retries` — @Gabriel
+- `RequestEncoder` soporta `application/x-www-form-urlencoded` y `multipart/form-data` — @Gabriel
+- `ResponseJSONParser` aplica `with_indifferent_access` recursivo en Arrays — @Gabriel
 
 ## [0.2.0] - 2026-03-31
 
-### Added
-- **Observability Standards:** Implemented structured KV logging (`component`, `event`, `source`, `duration_ms`) following Wispro standards.
-- **Precise Timing:** Integrated `monotonic clock` for accurate request duration measurements.
-- **Security:** Added automatic masking of sensitive keys (`password`, `token`, `api_key`, `auth`, `secret`) in logs.
-- **Flexible Connection:** Added support for both Unix sockets (`unix://`) and HTTP/TCP connections via `socket_path` configuration.
-- **Network Update:** Implemented `Network.update` functionality and endpoint.
-- **Enhanced Configuration:** Added `log_level` to the configuration block, allowing runtime adjustments of logging verbosity.
-- **Error Handling:** Added `TooManyRequests` (429) error mapping.
-- **Integration Tests:** Expanded coverage to include `Service`, `Node`, `Task`, `Swarm`, `System`, `Image`, and `Container`.
+### Nuevas funcionalidades
+- Logging estructurado KV (`component`, `event`, `source`, `duration_ms`) estándar Wispro — @Gabriel
+- Reloj monotónico para medición precisa de duración de requests — @Gabriel
+- Masking automático de claves sensibles en logs — @Gabriel
+- Soporte para Unix sockets y HTTP/TCP via `socket_path` — @Gabriel
+- `Network.update` implementado — @Gabriel
+- `log_level` configurable en runtime — @Gabriel
+- Error `TooManyRequests` (429) — @Gabriel
+- Tests de integración para Service, Node, Task, Swarm, System, Image y Container — @Gabriel
 
-### Changed
-- **Architectural Refactor:** Moved model files to `lib/docker_swarm/models/` for better organization.
-- **ORM Normalization:** Standardized `Base.all` to handle wrapped API responses (e.g., `Volumes`) using `root_key`.
-- **API Consistency:** Standardized `logs` methods to instance-level with default parameters (`stdout: 1, stderr: 1`).
-- **Swarm/System Unification:** Updated `Swarm` and `System` to inherit from `Base`, enabling dynamic attributes and consistent ORM behavior.
-- **Exception Hierarchy:** Refactored error classes to be nested under `DockerSwarm::Error` (e.g., `DockerSwarm::Error::Conflict`) while maintaining root-level aliases.
+### Mejoras internas
+- Modelos movidos a `lib/docker_swarm/models/` — @Gabriel
+- `Base.all` normalizado para respuestas envueltas (`root_key`) — @Gabriel
+- Método `logs` estandarizado a nivel de instancia — @Gabriel
+- `Swarm` y `System` heredan de `Base` con atributos dinámicos — @Gabriel
+- Jerarquía de errores reestructurada bajo `DockerSwarm::Error` con aliases — @Gabriel
 
-### Fixed
-- **Excon Error Wrapping:** Fixed issue where `Excon` would wrap business exceptions in `Excon::Error::Socket`, ensuring the original cause is raised.
-- **Volume All Bug:** Fixed `Volume.all` failing due to Docker's unique response structure.
-- **Typo Correction:** Fixed `Gateway_Timeout` to `GatewayTimeout` class name.
-- **Gem Entry Point:** Added `lib/docker-swarm.rb` to ensure correct automatic loading by Bundler/Rails.
-- **Validation Issues:** Relaxed `Service` validations to allow flexible resource creation during tests.
+### Correcciones
+- Excon ya no envuelve excepciones de negocio en `Excon::Error::Socket` — @Gabriel
+- `Volume.all` corregido para la respuesta envuelta de Docker — @Gabriel
+- `Gateway_Timeout` renombrado a `GatewayTimeout` — @Gabriel
+- Entry point `lib/docker-swarm.rb` agregado para Bundler/Rails — @Gabriel
+- Validaciones de `Service` relajadas para flexibilidad en tests — @Gabriel
 
 ---
 
 ## [0.1.0] - Early 2026
-- Initial release with basic ORM for Services, Networks, and Volumes.
+- Release inicial con ORM básico para Services, Networks y Volumes — @Gabriel
