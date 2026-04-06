@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.1] - 2026-04-06
+
+### Mejoras internas
+- Refactor de logs en `Connection`: cambio de `duration_ms` a `duration_s` y de `status` a `http_status` para alinearse con estándares de observabilidad — @Gabriel
+- Precisión de duración mejorada usando segundos con 4 decimales — @Gabriel
+- Reestructuración de `skills.yml` para soportar variables de entorno en agentes y nuevas skills — @Gabriel
+
 ## [0.5.0] - 2026-04-04
 
 ### Nuevas funcionalidades

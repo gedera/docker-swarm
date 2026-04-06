@@ -1,8 +1,14 @@
 # DockerSwarm — Project Intelligence
 
-## ¿Qué es DockerSwarm?
+## Qué es DockerSwarm
 
-TODO
+Gema Ruby que provee un ORM compatible con ActiveModel para Docker Engine API. Permite gestionar servicios, nodos, tasks, containers, networks, volumes, configs, secrets e imágenes de un cluster Docker Swarm como objetos Ruby con CRUD, validaciones y logging estructurado.
+
+## Documentación
+
+- **Para humanos**: `docs/` (5 archivos) + `README.md`. Ver README para índice.
+- **Para agentes AI**: `skill/SKILL.md` + `skill/references/`. Es la skill empaquetada que otros proyectos consumen via `skill-manager sync`.
+- **Nunca referenciar `skill/` desde `docs/` o `README.md`** — son audiencias distintas.
 
 ## Knowledge Base
 - Las skills en `.agents/skills/` incluyen conocimiento de dependencias.
@@ -31,5 +37,13 @@ TODO
 - Todo código nuevo debe tener tests.
 
 ### Releases o Nuevas versiones
-- Gemas: `/gem-release`
-- Servicios: `/service-release build` o `/service-release deploy`
+- Usar `/gem-release` para publicar nuevas versiones.
+- El GitHub Action publica a RubyGems automáticamente al pushear un tag `v*`.
+
+## Decisiones de Arquitectura
+
+- **PascalCase fiel**: Los atributos mantienen el naming de Docker (`Spec`, `TaskTemplate`, `ContainerSpec`). No se transforman a snake_case para evitar confusión con la documentación de Docker.
+- **Excon sobre Faraday**: Excon soporta Unix sockets nativamente y tiene un middleware stack más liviano. No necesitamos los adapters de Faraday.
+- **Dynamic Accessors**: `method_missing` + `respond_to_missing?` en vez de generación de código estático, porque Docker puede agregar campos nuevos en cualquier versión del API.
+- **Deep Indifferent Access recursivo**: Toda respuesta JSON se convierte a `HashWithIndifferentAccess` incluyendo arrays anidados.
+- **Spec deep_merge**: `assign_attributes` mergea el campo `Spec` en vez de reemplazarlo, para no perder campos anidados en updates parciales.

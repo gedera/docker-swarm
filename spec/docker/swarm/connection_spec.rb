@@ -28,8 +28,8 @@ RSpec.describe DockerSwarm::Connection do
       connection.request(method: :post, path: "/auth", password: "secret123")
     end
 
-    it "includes duration_ms in logs" do
-      expect(logger).to receive(:info).with(/duration_ms=\d+/)
+    it "includes duration_s in logs" do
+      expect(logger).to receive(:info).with(/duration_s=\d+/)
       connection.request(method: :get, path: "/info")
     end
 

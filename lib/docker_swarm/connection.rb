@@ -30,8 +30,8 @@ module DockerSwarm
 
       log_event("request_success",
                 data: options.merge(
-                  status: response.status,
-                  duration_ms: calculate_duration(start_time)
+                  http_status: response.status,
+                  duration_s: calculate_duration(start_time)
                 ))
 
       response.body
@@ -45,7 +45,7 @@ module DockerSwarm
                 data: options.merge(
                   error: actual_error.class.name,
                   message: actual_error.message,
-                  duration_ms: calculate_duration(start_time)
+                  duration_s: calculate_duration(start_time)
                 ))
 
       if actual_error.class.name.include?("DockerSwarm::Error")
@@ -80,7 +80,7 @@ module DockerSwarm
     end
 
     def calculate_duration(start_time)
-      ((Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time) * 1000).round(2)
+      (Process.clock_gettime(Process::CLOCK_MONOTONIC) - start_time).round(4)
     end
 
     def common_middlewares
