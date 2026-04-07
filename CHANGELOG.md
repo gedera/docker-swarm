@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.4] - 2026-04-07
+
+### Correcciones
+- `Inspectable`: todos los atributos deben usar `send(:attr)` para invocar métodos dinámicos — @Gabriel
+
 ## [0.5.3] - 2026-04-07
 
 ### Mejoras internas
