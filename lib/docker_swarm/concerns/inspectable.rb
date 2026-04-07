@@ -6,22 +6,21 @@ module DockerSwarm
       extend ActiveSupport::Concern
 
       def inspect
-        inspection = if respond_to?(:ID) && send(:ID).present?
-                       "ID: #{send(:ID)}"
-        else
-                       "not persisted"
+        return "#<#{self.class.name} not persisted>" unless persisted?
+
+        parts = []
+        parts << "ID: #{ID}" if respond_to?(:ID) && ID.present?
+        parts << "Name: #{Name}" if respond_to?(:Name) && Name.present?
+        parts << "CreatedAt: #{CreatedAt}" if respond_to?(:CreatedAt) && CreatedAt.present?
+        parts << "UpdatedAt: #{UpdatedAt}" if respond_to?(:UpdatedAt) && UpdatedAt.present?
+        parts << "Version: #{Version}" if respond_to?(:Version) && Version.present?
+
+        if respond_to?(:Spec) && Spec.present?
+          spec_str = Spec.map { |k, v| "#{k}=#{v.inspect}" }.join(", ")
+          parts << "Spec(#{spec_str})"
         end
 
-        # Intentar añadir el nombre si existe
-        name_attr = attributes["Name"] || (respond_to?(:Name) ? send(:Name) : nil)
-        inspection += ", Name: #{name_attr}" if name_attr.present?
-
-        # Intentar añadir la imagen para servicios/contenedores
-        spec = attributes["Spec"] || (respond_to?(:Spec) ? send(:Spec) : nil)
-        image = spec&.dig("TaskTemplate", "ContainerSpec", "Image") || attributes["Image"] || (respond_to?(:Image) ? send(:Image) : nil)
-        inspection += ", Image: #{image}" if image.present?
-
-        "#<#{self.class.name} #{inspection}>"
+        "#<#{self.class.name} #{parts.join(", ")}>"
       end
     end
   end

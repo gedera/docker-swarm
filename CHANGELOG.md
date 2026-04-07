@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.3] - 2026-04-07
+
+### Mejoras internas
+- `Inspectable` ahora muestra todos los atributos (ID, Name, CreatedAt, UpdatedAt, Version, Spec) — @Gabriel
+
 ## [0.5.2] - 2026-04-07
 
 ### Correcciones
