@@ -6,7 +6,7 @@ Skill de conocimiento completo sobre DockerSwarm. Consultame para cualquier preg
 
 **Base** — Clase ORM base que hereda de ActiveModel::Model. Provee accessors dinámicos PascalCase, `find`, `all`, `where`, `reload`, `payload_for_docker`. Todos los modelos heredan de ella.
 
-**Concern** — Mixin ActiveSupport::Concern que agrega comportamiento CRUD a un modelo: Creatable (POST), Updatable (POST con Version.Index), Deletable (DELETE), Loggable (logs streaming), Inspectable (#inspect legible).
+**Concern** — Mixin ActiveSupport::Concern que agrega comportamiento CRUD a un modelo: Creatable (POST), Updatable (POST con Version.Index), Deletable (DELETE), Loggable (logs streaming), Inspectable (#inspect legible). **Nota:** Los atributos dinámicos en Inspectable deben invocarse con `send(:ID)` para evitar `NameError` por interpretación como constante.
 
 **Middleware** — Capa Excon que procesa request/response: RequestEncoder (serialización body), ResponseJSONParser (parsing + indifferent access), ErrorHandler (status HTTP → excepción).
 

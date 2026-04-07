@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.5.2] - 2026-04-07
+
+### Correcciones
+- Fix en `Inspectable`: usar `send(:ID)` en vez de `ID` directamente para evitar `NameError` por interpretación como constante — @Gabriel
+
 ## [0.5.1] - 2026-04-06
 
 ### Mejoras internas
