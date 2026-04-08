@@ -6,7 +6,7 @@ Referencia completa de modelos, concerns, middleware y métodos públicos de Doc
 
 | Modelo | Creatable | Updatable | Deletable | Loggable | Extra |
 |--------|-----------|-----------|-----------|----------|-------|
-| Service | x | x | x | x | Ciclo de vida completo |
+| Service | x | x | x | x | `#restart`, ciclo de vida completo |
 | Node | | x | x | | Miembros del cluster, no se crean |
 | Task | | | | x | Read-only, generados por services |
 | Container | | | x | x | `#start`, `#stop` |
@@ -140,6 +140,17 @@ Incluido en: Service, Task, Container.
 # @param query_params [Hash] stdout:, stderr:, follow:, tail:, since:, timestamps:
 # @return [String] Raw log stream
 model.logs(query_params = { stdout: 1, stderr: 1 })
+```
+
+## Service — Métodos específicos
+
+```ruby
+service = DockerSwarm::Service.find("service_id")
+
+# Reiniciar servicio (fuerza recreación de tasks)
+# Equivalente a `docker service update --force`
+# @return [Boolean]
+service.restart
 ```
 
 ## Container — Métodos específicos

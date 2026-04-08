@@ -55,7 +55,7 @@ network.update(Labels: { env: "prod" })
 
 | Modelo | Concerns Incluidos | Métodos Adicionales |
 | :--- | :--- | :--- |
-| `Service` | `Creatable`, `Updatable`, `Deletable` | `#logs` |
+| `Service` | `Creatable`, `Updatable`, `Deletable` | `#logs`, `#restart` |
 | `Node` | `Updatable`, `Deletable` | - |
 | `Task` | - | `#logs` |
 | `Container` | `Deletable` | `#start`, `#stop`, `#logs` |
@@ -66,6 +66,16 @@ network.update(Labels: { env: "prod" })
 | `Image` | `Creatable`, `Deletable` | - |
 | `Swarm` | - | `.show` |
 | `System` | - | `.info`, `.version`, `.up`, `.df` |
+
+### Reinicio de Servicios
+El método `#restart` fuerza la recreación de todas las tasks de un servicio, equivalente a `docker service update --force`:
+
+```ruby
+service = DockerSwarm::Service.find("abc")
+service.restart  # => true
+```
+
+Internamente incrementa `ForceUpdate` en el `TaskTemplate` del Spec y ejecuta un `update`.
 
 ### Obtencion de Logs
 El método `#logs` ha sido estandarizado a nivel de instancia en `Service`, `Task` y `Container`. Por defecto, solicita tanto `stdout` como `stderr`.

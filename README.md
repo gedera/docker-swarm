@@ -10,7 +10,7 @@
 Agrega la gema a tu `Gemfile`:
 
 ```ruby
-gem 'docker-swarm', '~> 0.5'
+gem 'docker-swarm', '~> 0.6'
 ```
 
 Y ejecuta:
@@ -64,6 +64,12 @@ service.update(Mode: { Replicated: { Replicas: 3 } })
 
 ```ruby
 service.destroy  # graceful: retorna nil si ya no existe
+```
+
+### Reiniciar
+
+```ruby
+service.restart  # equivalente a docker service update --force
 ```
 
 ### Logs

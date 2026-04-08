@@ -57,6 +57,37 @@ RSpec.describe DockerSwarm::Service do
     end
   end
 
+  describe "#restart" do
+    it "increments ForceUpdate and triggers an update" do
+      service = described_class.new(
+        "ID" => "123",
+        "Version" => { "Index" => 5 },
+        "Spec" => { "Name" => "my-service", "TaskTemplate" => { "ForceUpdate" => 2 } }
+      )
+
+      expect(DockerSwarm::Api).to receive(:request).with(
+        hash_including(
+          action: described_class.routes[:update],
+          arguments: { id: "123" },
+          query_params: { version: 5 },
+          payload: hash_including("TaskTemplate" => hash_including("ForceUpdate" => 3))
+        )
+      ).and_return({})
+
+      expect(service.restart).to be true
+    end
+
+    it "starts ForceUpdate at 1 when not previously set" do
+      expect(DockerSwarm::Api).to receive(:request).with(
+        hash_including(
+          payload: hash_including("TaskTemplate" => hash_including("ForceUpdate" => 1))
+        )
+      ).and_return({})
+
+      expect(service.restart).to be true
+    end
+  end
+
   describe "#logs" do
     it "fetches logs for the service" do
       expect(DockerSwarm::Api).to receive(:request).with(

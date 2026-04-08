@@ -92,6 +92,9 @@ svc = DockerSwarm::Service.create(Name: "web", TaskTemplate: { ... })
 # Actualizar (maneja Version.Index automáticamente)
 service.update(Spec: { Replicas: 3 })
 
+# Reiniciar (fuerza recreación de tasks)
+service.restart
+
 # Eliminar (graceful con 404)
 service.destroy
 

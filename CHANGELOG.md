@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.6.0] - 2026-04-08
+
+### Nuevas funcionalidades
+- `Service#restart`: reinicia un servicio incrementando `ForceUpdate` en el `TaskTemplate`, equivalente a `docker service update --force` — @Gabriel
+
 ## [0.5.4] - 2026-04-07
 
 ### Correcciones
