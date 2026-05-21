@@ -2,18 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [0.7.0] — 2026-05-21
+
+### Breaking changes
+- `Connection#request`: retries automáticos sólo en métodos seguros (GET/HEAD/PUT/DELETE/OPTIONS). POST/PATCH ya **no** reintentan para evitar recursos duplicados ante caída de socket — @Gabriel
+- `Base#assign_attributes`: rama muerta que aceptaba no-Hash ahora levanta `ArgumentError` con mensaje claro — @Gabriel
+- Ruby floor: `>= 3.2.0` (antes `>= 2.7.0`), alineado con `activesupport` 8.1 — @Gabriel
 
 ### Correcciones
-- `Connection#request`: retries automáticos sólo en métodos seguros (GET/HEAD/PUT/DELETE/OPTIONS); POST/PATCH ya no reintentan para evitar recursos duplicados — @Gabriel
 - `Connection#request`: clasificación de errores por `is_a?(DockerSwarm::Error)` en vez de `class.name.include?`, evita falsos positivos con clases externas — @Gabriel
 - `LogHelper::SENSITIVE_KEYS`: `data` ahora se matchea con `\b` para no filtrar `metadata`, `database` u otras claves legítimas — @Gabriel
-- `Base#assign_attributes`: rama muerta que aceptaba no-Hash ahora levanta `ArgumentError` con mensaje claro — @Gabriel
+
+### Documentación
+- Re-estructura completa bajo skills `dev-*` (RFC-001/007/008/009/010): nuevos `docs/glossary/glossary.md` (20 términos) y `docs/behavior/behavior.md` (8 flujos load-bearing con Mermaid). `README.md` minimal-control y `skill/SKILL.md` con frontmatter, contrato resumido, version-lock — @Gabriel
+- Eliminados docs ad-hoc pre-estándar (`docs/{api,configuration,errors,models,testing}.md` y `skill/references/`) — @Gabriel
 
 ### Mejoras internas
 - CI: tests unitarios en `bundle exec rspec --tag ~type:integration` para que el build verde sea significativo sin Docker disponible — @Gabriel
-- Ruby floor sincronizado en 3.2+ entre `gemspec`, `.rubocop.yml` y workflows — @Gabriel
-- Gemspec: `metadata` con `changelog_uri`, `bug_tracker_uri`, `rubygems_mfa_required`; `LICENSE` y `CHANGELOG.md` incluidos en `spec.files` — @Gabriel
+- Gemspec: `metadata` con `changelog_uri`/`bug_tracker_uri`/`documentation_uri`/`rubygems_mfa_required` version-locked; `LICENSE`, `CHANGELOG.md` y `docs/**/*` incluidos en `spec.files` para que viajen con el release — @Gabriel
 - `LICENSE` (MIT) agregado al repo — @Gabriel
 - Removido `debug_docker.rb` del repo (artefacto de desarrollo) — @Gabriel
 

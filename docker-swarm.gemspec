@@ -14,13 +14,14 @@ Gem::Specification.new do |spec|
   spec.license       = "MIT"
   spec.required_ruby_version = Gem::Requirement.new(">= 3.2.0")
 
-  spec.metadata["homepage_uri"]      = spec.homepage
-  spec.metadata["source_code_uri"]   = spec.homepage
-  spec.metadata["changelog_uri"]     = "#{spec.homepage}/blob/main/CHANGELOG.md"
-  spec.metadata["bug_tracker_uri"]   = "#{spec.homepage}/issues"
+  spec.metadata["homepage_uri"]          = spec.homepage
+  spec.metadata["source_code_uri"]       = spec.homepage
+  spec.metadata["changelog_uri"]         = "#{spec.homepage}/blob/v#{spec.version}/CHANGELOG.md"
+  spec.metadata["bug_tracker_uri"]       = "#{spec.homepage}/issues"
+  spec.metadata["documentation_uri"]     = "#{spec.homepage}/blob/v#{spec.version}/skill/SKILL.md"
   spec.metadata["rubygems_mfa_required"] = "true"
 
-  spec.files = Dir.glob("{lib,exe,skill}/**/*") + %w[README.md CHANGELOG.md LICENSE]
+  spec.files = Dir.glob("{lib,exe,skill,docs}/**/*") + %w[README.md CHANGELOG.md LICENSE]
   spec.bindir        = "exe"
   spec.executables   = spec.files.grep(%r{\Aexe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
