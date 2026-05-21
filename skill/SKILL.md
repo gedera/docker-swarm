@@ -1,230 +1,174 @@
-# DockerSwarm Expert
+---
+name: docker-swarm
+description: >-
+  ORM y cliente API Ruby para Docker Swarm. Expone las primitivas del Docker
+  Engine (Service, Node, Task, Container, Network, Volume, Config, Secret,
+  Swarm, System, Image) como modelos ActiveModel con CRUD, control de
+  concurrencia optimista (Version.Index), retries seguros por método HTTP,
+  logging KV con masking de secrets y jerarquía de errores tipada. ACTIVAR
+  cuando el caller necesita orquestar Docker desde Ruby — listar/crear/
+  actualizar/eliminar recursos del cluster, leer logs de services/tasks/
+  containers, hacer health-check del daemon (System.up/info/df), filtrar por
+  labels, o capturar errores tipados de Docker (Conflict/NotFound/
+  Communication). NO activar para builds de imágenes (no implementado), pull
+  con auth de registry privado (no implementado), o flujos que no son
+  Swarm (Docker Compose, raw containers).
+triggers:
+  - "DockerSwarm::"
+  - "docker-swarm gem"
+  - "Docker Engine API desde Ruby"
+  - "Service.create / Service.update / Service.restart"
+  - "Container.start / Container.stop"
+  - "logs de un servicio Docker"
+  - "Version.Index"
+---
 
-Skill de conocimiento completo sobre DockerSwarm. Consultame para cualquier pregunta sobre integración, arquitectura, API, errores y antipatrones.
+# docker-swarm — Skill
 
-## Glosario
+## Qué es / cuándo usar
 
-**Base** — Clase ORM base que hereda de ActiveModel::Model. Provee accessors dinámicos PascalCase, `find`, `all`, `where`, `reload`, `payload_for_docker`. Todos los modelos heredan de ella.
+Gema Ruby que provee ORM `ActiveModel`-compatible sobre Docker Engine API. Cliente HTTP `Excon` directo (Unix socket o TCP). Usá esta dep para orquestación programática de Docker Swarm: lifecycle de recursos, logs, health checks y observabilidad.
 
-**Concern** — Mixin ActiveSupport::Concern que agrega comportamiento CRUD a un modelo: Creatable (POST), Updatable (POST con Version.Index), Deletable (DELETE), Loggable (logs streaming), Inspectable (#inspect legible). **Nota:** Los atributos dinámicos en Inspectable deben invocarse con `send(:ID)` para evitar `NameError` por interpretación como constante.
+No es:
+- Build/compose tool — no construye imágenes, no parsea `docker-compose.yml`.
+- Driver Kubernetes — sólo Swarm.
 
-**Middleware** — Capa Excon que procesa request/response: RequestEncoder (serialización body), ResponseJSONParser (parsing + indifferent access), ErrorHandler (status HTTP → excepción).
-
-**Deep Indifferent Access** — Toda respuesta JSON se convierte recursivamente a `HashWithIndifferentAccess`, permitiendo acceso por symbol o string en cualquier nivel de anidamiento.
-
-**Dynamic Accessor** — Cuando Docker devuelve un atributo nuevo (ej: `Spec`, `Status`), Base crea `attr_accessor` dinámicamente via `method_missing`. Se cachea en `defined_attributes` (Set) para no redefinir.
-
-**Version.Index** — Mecanismo de Docker para updates atómicos. Updatable extrae `Version["Index"]` y lo envía como query param para evitar race conditions.
-
-**LogHelper** — Módulo que formatea logs en KV (`key=value`) y enmascara campos sensibles matching `/password|token|api_key|auth|secret|data/i` → `[FILTERED]`.
-
-## Arquitectura
-
-### Responsabilidad core
-
-ORM ligero compatible con ActiveModel para Docker Engine API. Comunica via Excon sobre Unix socket (default) o TCP. Todos los requests pasan por una cadena de middlewares.
-
-### Mapa de componentes
-
-```
-┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-│   Modelo     │────>│   Api        │────>│  Connection   │
-│  (Service,   │     │  (ENDPOINTS  │     │  (Excon +     │
-│   Node...)   │     │   + request) │     │   Timeouts)   │
-└──────────────┘     └──────────────┘     └──────────────┘
-                                                │
-                                                ▼
-                                    ┌───────────────────────┐
-                                    │   Middleware Stack     │
-                                    │  RequestEncoder       │
-                                    │  ResponseJSONParser   │
-                                    │  ErrorHandler         │
-                                    └───────────────────────┘
-```
-
-### Flujo en runtime
-
-1. Modelo invoca `Api.request(action:, arguments:, query_params:, payload:)`.
-2. Api formatea el path con `format()` y delega a `DockerSwarm.request`.
-3. Connection crea/reutiliza cliente Excon singleton con middlewares.
-4. RequestEncoder serializa body (JSON default, form-urlencoded, multipart).
-5. Excon envía al Docker daemon (socket o TCP).
-6. ResponseJSONParser parsea JSON y aplica `with_indifferent_access` recursivo.
-7. ErrorHandler mapea status 4xx/5xx a excepciones tipadas.
-8. Connection mide duración con `CLOCK_MONOTONIC` y loguea en KV.
-
-### Decisiones de diseño
-
-- **PascalCase fiel**: Los atributos mantienen el naming de Docker (`Spec`, `TaskTemplate`, `ContainerSpec`). No se transforman a snake_case.
-- **Spec merging**: `assign_attributes` hace `deep_merge` cuando el atributo es `Spec` para no perder campos anidados en updates.
-- **Singleton connection**: `@client ||= Excon.new(...)` — se reutiliza, se resetea al cambiar configuración.
-- **Retries en Excon**: `idempotent: true` + `retry_errors: [Socket, Timeout]` con `max_retries` configurable.
-
-## API Pública (resumen)
+## Contrato resumido (piso mínimo)
 
 ### Configuración
 
 ```ruby
 DockerSwarm.configure do |config|
-  config.socket_path     = "unix:///var/run/docker.sock"  # o http://host:port
+  config.socket_path     = "unix:///var/run/docker.sock"  # o "http://host:2375"
   config.logger          = Logger.new($stdout)
   config.log_level       = Logger::INFO
-  config.read_timeout    = 60.0    # segundos
+  config.read_timeout    = 60.0
   config.write_timeout   = 60.0
   config.connect_timeout = 10.0
   config.max_retries     = 3
 end
 ```
 
-### Operaciones comunes
+Defaults son razonables: en local sin TLS, no necesitás bloque `configure`.
+
+### Símbolos públicos por modelo
+
+| Modelo | Class methods | Instance methods | Notas |
+|---|---|---|---|
+| `Service` | `all(filters)`, `find(id)`, `where(filters)`, `create(attrs)` | `update(attrs)`, `restart`, `destroy`, `logs(query)`, `reload`, `persisted?`, `id` | CRUD completo + force-recreate de tasks |
+| `Node` | `all(filters)`, `find(id)`, `where(filters)` | `update(attrs)`, `destroy` | No `create` (los nodos se unen fuera de la gema) |
+| `Task` | `all(filters)`, `find(id)`, `where(filters)` | `logs(query)`, `reload` | Read-only (generados por orquestador) |
+| `Container` | `all(filters)`, `find(id)`, `where(filters)` | `start`, `stop`, `destroy`, `logs(query)` | **No `create`** (gap conocido, fuera F1) |
+| `Image` | `all(filters)`, `find(id)`, `create(attrs)` | `destroy` | `create` = pull. **No soporta `X-Registry-Auth`** (registries privados con auth no funcionan) |
+| `Network` | `all(filters)`, `find(id)`, `create(attrs)` | `update(attrs)`, `destroy` | CRUD completo |
+| `Volume` | `all(filters)`, `find(id)`, `create(attrs)` | `destroy` | No `update` (Docker no lo soporta). Respuesta wrapped vía `root_key = "Volumes"` |
+| `Config` | `all(filters)`, `find(id)`, `create(attrs)` | `destroy` | No `update` — recrear |
+| `Secret` | `all(filters)`, `find(id)`, `create(attrs)` | `destroy` | No `update`. `Data` se filtra en logs (LogHelper) |
+| `Swarm` | `.show` | — | Singleton, sólo info del cluster |
+| `System` | `.info`, `.version`, `.up`, `.df` | — | Singleton, health/observabilidad |
+
+Detalle por símbolo en [`docs/glossary/glossary.md`](docs/glossary/glossary.md). Secuencias de operación en [`docs/behavior/behavior.md`](docs/behavior/behavior.md).
+
+### Operaciones típicas
 
 ```ruby
-# Listar
-DockerSwarm::Service.all
-DockerSwarm::Service.all(label: ["app=web"])
+# Listar con filtros (serializa como JSON en query param `filters`)
+DockerSwarm::Service.all(label: ["env=production"])
+DockerSwarm::Node.all(role: ["manager"])
+DockerSwarm::Container.all(status: ["running"])
 
-# Buscar
-service = DockerSwarm::Service.find("service_id")  # nil si no existe
+# Lookup graceful (nil si 404)
+service = DockerSwarm::Service.find("svc-id")  # => Service | nil
 
-# Crear
-svc = DockerSwarm::Service.create(Name: "web", TaskTemplate: { ... })
+# Crear (auto-reload tras POST para hidratar Spec/Version completos)
+svc = DockerSwarm::Service.create(
+  Name: "web",
+  TaskTemplate: { ContainerSpec: { Image: "nginx:latest" } }
+)
 
-# Actualizar (maneja Version.Index automáticamente)
-service.update(Spec: { Replicas: 3 })
+# Update atómico (Version.Index extraído automáticamente)
+service.update(Mode: { Replicated: { Replicas: 3 } })
 
-# Reiniciar (fuerza recreación de tasks)
+# Force-recreate de tasks (equivalente a `docker service update --force`)
 service.restart
 
-# Eliminar (graceful con 404)
+# Destroy graceful (nil si 404)
 service.destroy
 
-# Logs
+# Logs raw
 service.logs(stdout: 1, stderr: 1)
 
-# Sistema
-DockerSwarm::System.up       # ping
-DockerSwarm::System.info     # daemon info
-DockerSwarm::System.version  # versión Docker
-DockerSwarm::System.df       # disk usage
-DockerSwarm::Swarm.show      # info del cluster
+# Health check
+DockerSwarm::System.up        # => "OK" si daemon responde
 ```
 
-Ver [API Detallada](references/api-detallada.md) para la referencia completa de todos los modelos.
+### Jerarquía de errores
 
-## FAQ
+Todas heredan de `DockerSwarm::Error`. Tres formas de acceso equivalentes: `DockerSwarm::NotFound`, `DockerSwarm::Error::NotFound`, `DockerSwarm::Errors::NotFound`.
 
-### Como conecto a un Docker remoto por TCP?
+| Excepción | Status | Cuándo |
+|---|---|---|
+| `BadRequest` | 400 | Payload malformado |
+| `Unauthorized` | 401 | TLS sin credenciales |
+| `Forbidden` | 403 | Permisos insuficientes (ej: swarm op en worker) |
+| `NotFound` | 404 | Recurso inexistente (capturado por `find`/`destroy`) |
+| `NotAcceptable` | 406 | Headers Accept incompatibles (raro) |
+| `RequestTimeout` | 408 | Daemon tardó (subí `read_timeout`) |
+| `Conflict` | 409 | Nombre duplicado o `Version.Index` stale |
+| `UnprocessableEntity` | 422 | Payload semánticamente inválido |
+| `TooManyRequests` | 429 | Rate limiting |
+| `InternalServerError` | 500 | Bug Docker o update sin `version` query param |
+| `BadGateway` | 502 | Proxy entre cliente y daemon falló |
+| `ServiceUnavailable` | 503 | Daemon reiniciando |
+| `GatewayTimeout` | 504 | Proxy timeout |
+| `Communication` | — | Socket caído / inalcanzable. `cause` mantiene el `Excon::Error` original |
+
+## Gotchas / breaking
+
+- **PascalCase fiel.** Los atributos NO se transforman: `service.Spec`, `service.TaskTemplate`, `service.Version` — no `snake_case`. Indifferent access soportado: `service.Spec[:Name]` ≡ `service.Spec["Name"]`.
+- **`Version.Index` obligatorio en updates** (Service/Node/Network). La gema lo extrae automático de `self.Version["Index"]`. Si construís el request por afuera (`DockerSwarm.request`), tenés que pasarlo vos.
+- **Retries automáticos sólo en métodos seguros** (GET/HEAD/PUT/DELETE/OPTIONS). POST/PATCH **no** reintentan para evitar duplicados — si el socket se cae durante un `create`, el caller decide qué hacer. Ver §3.5 de `docs/behavior/behavior.md`.
+- **`Spec` se mergea con `deep_merge` en updates**, no se reemplaza. Pasale sólo los campos que cambian: `service.update(Mode: {...})`, no `service.update(Spec: {...completo})`.
+- **`assign_attributes` muta antes de validar.** Si `update` falla por `valid?` o por el API, la instancia local quedó mutada. Hacé `reload` si necesitás estado limpio.
+- **`Container.create` no existe** en la gema (gap intencional F1). Si necesitás crear containers standalone, usá `DockerSwarm.request(method: :post, path: "containers/create", ...)` directo.
+- **Pull con registry privado no soportado.** `Image.create` no inyecta header `X-Registry-Auth`. Para registries privados, fallback a `DockerSwarm.request` con headers manuales.
+- **`destroy` es graceful con 404** (retorna `nil`), no con 409. Si el recurso está en uso, `Conflict` se propaga.
+- **Logs sensibles enmascarados** automáticamente: keys matching `password|pass|passwd|secret|token|api_key|auth|\bdata\b` → `[FILTERED]`. `\bdata\b` evita filtrar `metadata`/`database`.
+
+## Testing
+
+Mockear `DockerSwarm::Api.request`:
 
 ```ruby
+expect(DockerSwarm::Api).to receive(:request).with(
+  hash_including(action: DockerSwarm::Api::ENDPOINTS[:services][:show])
+).and_return({ "ID" => "svc-1", "Spec" => { "Name" => "web" }, "Version" => { "Index" => 1 } })
+
+service = DockerSwarm::Service.find("svc-1")
+```
+
+Para `create`: mockear **dos** llamadas (POST + show de reload). Para errores: `and_raise(DockerSwarm::NotFound)` etc.
+
+## Integración (Rails)
+
+```ruby
+# config/initializers/docker_swarm.rb
 DockerSwarm.configure do |config|
-  config.socket_path = "http://192.168.1.100:2375"
+  config.socket_path = ENV.fetch("DOCKER_URL", "unix:///var/run/docker.sock")
+  config.logger      = Rails.logger
+  config.log_level   = Rails.logger.level
 end
 ```
-Connection detecta si empieza con `unix://` (socket) o no (TCP) y configura Excon.
 
-### Por qué los atributos son PascalCase y no snake_case?
+Logs salen en formato KV (`component=docker_swarm.connection event=request_success ...`) compatible con parsers estructurados.
 
-Docker Engine API usa PascalCase en todos sus JSON. La gema mantiene fidelidad 1:1 para evitar confusión al leer la documentación de Docker. Se accede igual: `service.Spec`, `node.Status`.
+## Índice de artefactos
 
-### Como filtro recursos con labels?
+- [`docs/glossary/glossary.md`](docs/glossary/glossary.md) — definición de términos (primitivas Docker + conceptos internos).
+- [`docs/behavior/behavior.md`](docs/behavior/behavior.md) — secuencias load-bearing (create+reload, update+Version, retry-policy, error-mapping, etc.).
+- `docs/data/` — `n/a` (gema sin DB).
+- `docs/api/`, `docs/interface/`, `docs/topology/` — F2 declaradas, **no implementadas**. El contrato resumido de arriba reside **transitoriamente** acá (RFC-008 §2 coexistencia transitoria con destino pendiente).
 
-```ruby
-DockerSwarm::Service.all(label: ["env=production", "app=web"])
-DockerSwarm::Node.all(role: ["manager"])
-```
-Los filtros se serializan como JSON en el query param `filters` del Docker API.
+## Versionado del contrato
 
-### Como manejo errores de conexión?
-
-```ruby
-begin
-  DockerSwarm::System.up
-rescue DockerSwarm::Communication => e
-  # Socket caído o inalcanzable
-end
-```
-`Communication` envuelve errores de `Excon::Error::Socket`. Los retries se aplican automáticamente (`max_retries`).
-
-### Puedo usar validaciones de ActiveModel?
-
-Sí. Todos los modelos heredan de `ActiveModel::Model`. Podés agregar validaciones custom:
-
-```ruby
-service = DockerSwarm::Service.new(Name: "")
-service.valid?  # usa validaciones ActiveModel
-service.save    # retorna false si invalid?
-```
-
-## Antipatrones
-
-### Transformar atributos a snake_case
-
-```ruby
-# MAL
-service.task_template["container_spec"]
-
-# BIEN
-service.TaskTemplate["ContainerSpec"]
-```
-**Razón:** Docker API usa PascalCase. La gema mantiene fidelidad. Con indifferent access, podés usar strings o symbols, pero siempre PascalCase.
-
-### Reemplazar Spec en vez de mergear
-
-```ruby
-# MAL — pierde campos existentes del Spec
-service.update(Spec: { Mode: { Replicated: { Replicas: 5 } } })
-
-# BIEN — mergear solo lo que cambia
-service.update(Mode: { Replicated: { Replicas: 5 } })
-```
-**Razón:** `payload_for_docker` extrae contenido de Spec al root. Si pasás Spec completo, `assign_attributes` hace deep_merge, pero es más limpio pasar los campos directamente.
-
-### Ignorar Version.Index en updates
-
-```ruby
-# MAL — update manual sin version
-DockerSwarm.request(method: :post, path: "services/#{id}/update", body: payload)
-
-# BIEN — usar el modelo, maneja version automáticamente
-service.update(new_attrs)
-```
-**Razón:** Docker requiere `version` query param para updates atómicos. Updatable lo extrae de `self.Version["Index"]` automáticamente.
-
-### No capturar errores específicos
-
-```ruby
-# MAL
-begin
-  service.destroy
-rescue StandardError
-  # tragarse todo
-end
-
-# BIEN
-begin
-  service.destroy
-rescue DockerSwarm::NotFound
-  # ya fue eliminado, ok
-rescue DockerSwarm::Conflict => e
-  # servicio en uso
-end
-```
-**Razón:** La jerarquía de errores mapea cada status HTTP. Capturar errores específicos permite manejar cada caso.
-
-## Errores
-
-Los errores más comunes. Ver [Catálogo de Errores](references/errores.md) para la referencia completa.
-
-| Excepción | Status | Causa típica |
-|-----------|--------|--------------|
-| `NotFound` | 404 | Recurso eliminado o ID incorrecto |
-| `Conflict` | 409 | Nombre duplicado o recurso en uso |
-| `Communication` | — | Socket caído o inalcanzable |
-| `ServiceUnavailable` | 503 | Docker daemon reiniciando |
-
-Todas heredan de `DockerSwarm::Error`. Se acceden como `DockerSwarm::NotFound` (alias) o `DockerSwarm::Error::NotFound`.
-
-## Referencias
-
-- [API Detallada](references/api-detallada.md) — Referencia completa de modelos, concerns y métodos
-- [Catálogo de Errores](references/errores.md) — Todas las excepciones con causa y resolución
+Este SKILL.md viaja version-locked con el release de la gema (`gemspec.files` incluye `skill/**/*`). Para consumir desde otro proyecto: el agente lee `Gem.loaded_specs["docker-swarm"].gem_dir + "/skill/SKILL.md"`. Links relativos del paquete del release; no `HEAD`/branch.
