@@ -1,145 +1,66 @@
-# Docker Swarm Gem
+# docker-swarm
 
 [![Gem Version](https://badge.fury.io/rb/docker-swarm.svg)](https://badge.fury.io/rb/docker-swarm)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-`docker-swarm` es un ORM ligero y cliente API robusto para interactuar con Docker Swarm desde Ruby. Diseñado para sentirse familiar a los desarrolladores de Rails, utiliza `ActiveModel` para ofrecer una interfaz limpia y potente con estándares de observabilidad de Wispro.
+## Propósito
 
-## Instalacion
+ORM ligero y cliente API para Docker Swarm en Ruby. Expone las primitivas del Docker Engine (Service, Node, Task, Container, Network, Volume, Config, Secret, Swarm, System, Image) como modelos `ActiveModel` con CRUD, validaciones y logs estructurados KV. Excon directo sobre el socket Unix (default) o TCP.
 
-Agrega la gema a tu `Gemfile`:
+## Setup
 
 ```ruby
+# Gemfile
 gem 'docker-swarm', '~> 0.6'
 ```
-
-Y ejecuta:
 
 ```bash
 bundle install
 ```
 
-## Quick Start
+Quick start:
 
 ```ruby
 require 'docker_swarm'
 
-# Configurar (opcional, usa defaults razonables)
 DockerSwarm.configure do |config|
-  config.socket_path = "unix:///var/run/docker.sock"
+  config.socket_path = "unix:///var/run/docker.sock"  # default
   config.log_level   = Logger::INFO
-  config.max_retries = 3
 end
 
-# Verificar conectividad
-DockerSwarm::System.up  # => "OK"
-
-# Listar servicios
-services = DockerSwarm::Service.all
-services.each { |s| puts "#{s.ID}: #{s.Spec[:Name]}" }
+DockerSwarm::System.up                  # => "OK"
+DockerSwarm::Service.all                # => [#<Service ...>, ...]
+DockerSwarm::Service.find("svc-id")     # => nil si no existe
 ```
 
-## Uso
+Para el contrato completo de la gema (símbolos públicos, gotchas, integración) ver [`skill/SKILL.md`](skill/SKILL.md).
 
-### Crear un servicio
+## Índice de artefactos
 
-```ruby
-service = DockerSwarm::Service.create(
-  Name: "my-webapp",
-  TaskTemplate: {
-    ContainerSpec: { Image: "nginx:latest" }
-  }
-)
-puts service.ID
-```
+Documentación normada (RFC-001) por capa:
 
-### Actualizar (maneja Version.Index automaticamente)
+| Capa | Artefacto | Estado |
+|---|---|---|
+| Datos | — | `n/a` (gema sin DB) |
+| Glosario | [`docs/glossary/glossary.md`](docs/glossary/glossary.md) | F1 completo |
+| Comportamiento | [`docs/behavior/behavior.md`](docs/behavior/behavior.md) | F1 backfill on-demand (8 flujos) |
+| API (operaciones) | — | F2 pendiente; contrato resumido inline en `skill/SKILL.md` |
+| Interfaz | — | F2 pendiente; contrato resumido inline en `skill/SKILL.md` |
+| Topología | — | F2 pendiente |
+| Eventos | — | `n/a` (la gema no emite eventos) |
 
-```ruby
-service = DockerSwarm::Service.find("svc-id")
-service.update(Mode: { Replicated: { Replicas: 3 } })
-```
+`n/a` = no aplica al tipo de repo. F2 pendiente = capa declarada en la RFC pero todavía no implementada en `dev-structure`; el contenido relevante vive transitoriamente en `skill/SKILL.md` (RFC-008 §2 coexistencia transitoria).
 
-### Eliminar
-
-```ruby
-service.destroy  # graceful: retorna nil si ya no existe
-```
-
-### Reiniciar
-
-```ruby
-service.restart  # equivalente a docker service update --force
-```
-
-### Logs
-
-```ruby
-puts service.logs(stdout: 1, stderr: 1)
-```
-
-### Filtros
-
-```ruby
-DockerSwarm::Service.all(label: ["env=production"])
-DockerSwarm::Node.all(role: ["manager"])
-DockerSwarm::Container.all(status: ["running"])
-```
-
-### Sistema y Cluster
-
-```ruby
-DockerSwarm::System.info     # informacion del daemon
-DockerSwarm::System.version  # version de Docker
-DockerSwarm::System.df       # uso de disco
-DockerSwarm::Swarm.show      # informacion del cluster
-```
-
-### Manejo de errores
-
-```ruby
-begin
-  DockerSwarm::Service.create(Name: "web", TaskTemplate: { ... })
-rescue DockerSwarm::Conflict => e
-  puts "Nombre duplicado"
-rescue DockerSwarm::Communication => e
-  puts "Docker inalcanzable: #{e.message}"
-end
-```
-
-## Configuracion
-
-```ruby
-DockerSwarm.configure do |config|
-  config.socket_path     = "unix:///var/run/docker.sock"  # o http://host:port
-  config.logger          = Logger.new($stdout)
-  config.log_level       = Logger::INFO
-  config.read_timeout    = 60    # segundos
-  config.write_timeout   = 60
-  config.connect_timeout = 10
-  config.max_retries     = 3
-end
-```
-
-Ver [Guia de Configuracion](docs/configuration.md) para opciones avanzadas, Rails integration y observabilidad.
-
-## Documentacion
-
-- [Modelos (ORM)](docs/models.md) — Todos los modelos, concerns y ciclo de vida
-- [Configuracion](docs/configuration.md) — Opciones, observabilidad y seguridad
-- [Manejo de Errores](docs/errors.md) — Jerarquia de excepciones y uso
-- [Cliente API](docs/api.md) — Acceso de bajo nivel y middlewares
-- [Testing](docs/testing.md) — Estrategias de mocking para tus tests
-
-## Contribuir
-
-Las contribuciones son bienvenidas. Por favor, lee `CLAUDE.md` para las guias de desarrollo.
+## Desarrollo
 
 ```bash
-bundle exec rspec       # tests
-bundle exec rubocop -a  # linting
+bundle exec rspec --tag ~type:integration   # unit suite
+bundle exec rspec                            # incluye integration (requiere Docker socket)
+bundle exec rubocop -a                       # lint
 ```
+
+Release: `/gem-release` (publica a RubyGems via GitHub Action al tag `v*`).
 
 ## Licencia
 
-Este proyecto esta bajo la licencia MIT.
+MIT — ver [LICENSE](LICENSE).
