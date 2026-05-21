@@ -32,6 +32,13 @@ RSpec.describe DockerSwarm::Base do
     end
   end
 
+  describe "#assign_attributes" do
+    it "raises ArgumentError when given a non-Hash" do
+      model = DummyModel.new("ID" => "1")
+      expect { model.assign_attributes("not-a-hash") }.to raise_error(ArgumentError, /Hash/)
+    end
+  end
+
   describe "Dynamic Setters" do
     it "creates a setter when a non-existent method ending in = is called" do
       model = DummyModel.new

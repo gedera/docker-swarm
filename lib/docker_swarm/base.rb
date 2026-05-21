@@ -75,31 +75,23 @@ module DockerSwarm
 
     def assign_attributes(new_attributes)
       return if new_attributes.blank?
+      raise ArgumentError, "assign_attributes expects a Hash, got #{new_attributes.class}" unless new_attributes.is_a?(Hash)
 
-      attributes_to_assign = new_attributes.deep_dup
+      attributes_to_assign = new_attributes.deep_dup.with_indifferent_access
+      normalized_attributes = {}
 
-      if attributes_to_assign.is_a?(Hash)
-        attributes_to_assign = attributes_to_assign.with_indifferent_access
-        normalized_attributes = {}
+      attributes_to_assign.each do |key, value|
+        normalized_key = key.to_s == "Id" ? "ID" : key.to_s
+        _define_dynamic_accessor(normalized_key)
 
-        attributes_to_assign.each do |key, value|
-          normalized_key = key.to_s == "Id" ? "ID" : key.to_s
-          _define_dynamic_accessor(normalized_key)
-
-          if normalized_key == "Spec" && respond_to?(:Spec) && self.Spec.is_a?(Hash) && value.is_a?(Hash)
-            value = self.Spec.deep_merge(value)
-          end
-
-          normalized_attributes[normalized_key] = value
+        if normalized_key == "Spec" && respond_to?(:Spec) && self.Spec.is_a?(Hash) && value.is_a?(Hash)
+          value = self.Spec.deep_merge(value)
         end
 
-        super(normalized_attributes)
-      else
-        Array(attributes_to_assign).each do |item|
-          next unless item.is_a?(Hash)
-          item.each_key { |key| _define_dynamic_accessor(key) }
-        end
+        normalized_attributes[normalized_key] = value
       end
+
+      super(normalized_attributes)
     end
 
     def attributes

@@ -10,14 +10,17 @@ Gem::Specification.new do |spec|
 
   spec.summary       = "A Ruby ORM and API client for Docker Swarm."
   spec.description   = "Simplifies interactions with Docker Swarm through an ActiveModel-compatible ORM and a robust Excon-based API client."
-  spec.homepage      = "https://github.com/wispro/docker-swarm"
+  spec.homepage      = "https://github.com/gedera/docker-swarm"
   spec.license       = "MIT"
-  spec.required_ruby_version = Gem::Requirement.new(">= 2.7.0")
+  spec.required_ruby_version = Gem::Requirement.new(">= 3.2.0")
 
-  spec.metadata["homepage_uri"] = spec.homepage
-  spec.metadata["source_code_uri"] = spec.homepage
+  spec.metadata["homepage_uri"]      = spec.homepage
+  spec.metadata["source_code_uri"]   = spec.homepage
+  spec.metadata["changelog_uri"]     = "#{spec.homepage}/blob/main/CHANGELOG.md"
+  spec.metadata["bug_tracker_uri"]   = "#{spec.homepage}/issues"
+  spec.metadata["rubygems_mfa_required"] = "true"
 
-  spec.files = Dir.glob("{lib,exe,skill}/**/*") + %w[README.md]
+  spec.files = Dir.glob("{lib,exe,skill}/**/*") + %w[README.md CHANGELOG.md LICENSE]
   spec.bindir        = "exe"
   spec.executables   = spec.files.grep(%r{\Aexe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
