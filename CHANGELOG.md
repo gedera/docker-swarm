@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Correcciones
+- `Connection#request`: retries automáticos sólo en métodos seguros (GET/HEAD/PUT/DELETE/OPTIONS); POST/PATCH ya no reintentan para evitar recursos duplicados — @Gabriel
+- `Connection#request`: clasificación de errores por `is_a?(DockerSwarm::Error)` en vez de `class.name.include?`, evita falsos positivos con clases externas — @Gabriel
+- `LogHelper::SENSITIVE_KEYS`: `data` ahora se matchea con `\b` para no filtrar `metadata`, `database` u otras claves legítimas — @Gabriel
+- `Base#assign_attributes`: rama muerta que aceptaba no-Hash ahora levanta `ArgumentError` con mensaje claro — @Gabriel
+
+### Mejoras internas
+- CI: tests unitarios en `bundle exec rspec --tag ~type:integration` para que el build verde sea significativo sin Docker disponible — @Gabriel
+- Ruby floor sincronizado en 3.2+ entre `gemspec`, `.rubocop.yml` y workflows — @Gabriel
+- Gemspec: `metadata` con `changelog_uri`, `bug_tracker_uri`, `rubygems_mfa_required`; `LICENSE` y `CHANGELOG.md` incluidos en `spec.files` — @Gabriel
+- `LICENSE` (MIT) agregado al repo — @Gabriel
+- Removido `debug_docker.rb` del repo (artefacto de desarrollo) — @Gabriel
+
 ## [0.6.0] - 2026-04-08
 
 ### Nuevas funcionalidades

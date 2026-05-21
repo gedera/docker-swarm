@@ -2,6 +2,10 @@
 
 module DockerSwarm
   class Connection
+    # HTTP methods safe to retry automatically. POST/PATCH are excluded because
+    # replaying after a partial failure can create duplicate resources.
+    IDEMPOTENT_METHODS = %i[get head put delete options].freeze
+
     attr_reader :socket_path, :logger
 
     def initialize(socket_path, logger)
@@ -16,14 +20,16 @@ module DockerSwarm
                 level: :debug,
                 data: options.merge(path: options[:path]))
 
-      # Combinar opciones por defecto de la gema con las de la petición
+      method = options[:method].to_s.downcase.to_sym
+      idempotent = IDEMPOTENT_METHODS.include?(method)
+
       request_options = {
-        idempotent: true,
+        idempotent: idempotent,
         retry_errors: [ Excon::Error::Socket, Excon::Error::Timeout ],
         read_timeout: DockerSwarm.configuration.read_timeout.to_f,
         write_timeout: DockerSwarm.configuration.write_timeout.to_f,
         connect_timeout: DockerSwarm.configuration.connect_timeout.to_f,
-        retries: DockerSwarm.configuration.max_retries.to_i
+        retries: idempotent ? DockerSwarm.configuration.max_retries.to_i : 0
       }.merge(options)
 
       response = client.request(request_options)
@@ -37,8 +43,8 @@ module DockerSwarm
       response.body
     rescue => e
       # Excon suele envolver excepciones de middleware en Excon::Error::Socket.
-      # Intentamos recuperar la causa original si es una de nuestras excepciones.
-      actual_error = (e.respond_to?(:cause) && e.cause&.class&.name&.include?("DockerSwarm::Error")) ? e.cause : e
+      # Recuperamos la causa original si es una excepción de DockerSwarm.
+      actual_error = e.cause.is_a?(::DockerSwarm::Error) ? e.cause : e
 
       log_event("request_failure",
                 level: :error,
@@ -48,9 +54,10 @@ module DockerSwarm
                   duration_s: calculate_duration(start_time)
                 ))
 
-      if actual_error.class.name.include?("DockerSwarm::Error")
+      case actual_error
+      when ::DockerSwarm::Error
         raise actual_error
-      elsif actual_error.is_a?(Excon::Error::Socket)
+      when Excon::Error::Socket
         raise ::DockerSwarm::Error::Communication, "Docker socket error: #{actual_error.message}"
       else
         raise actual_error

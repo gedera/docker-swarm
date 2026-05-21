@@ -23,6 +23,21 @@ RSpec.describe DockerSwarm::Connection do
       connection.request(method: :get, path: "/info")
     end
 
+    it "marks GET requests as idempotent with retries" do
+      expect(excon_double).to receive(:request).with(hash_including(idempotent: true, retries: 3))
+      connection.request(method: :get, path: "/info")
+    end
+
+    it "does not retry POST requests to avoid duplicate side-effects" do
+      expect(excon_double).to receive(:request).with(hash_including(idempotent: false, retries: 0))
+      connection.request(method: :post, path: "/services/create", body: { Name: "x" })
+    end
+
+    it "does not retry DELETE-like writes via PATCH" do
+      expect(excon_double).to receive(:request).with(hash_including(idempotent: false, retries: 0))
+      connection.request(method: :patch, path: "/whatever")
+    end
+
     it "masks secrets in logs" do
       expect(logger).to receive(:info).with(/password=\[FILTERED\]/)
       connection.request(method: :post, path: "/auth", password: "secret123")

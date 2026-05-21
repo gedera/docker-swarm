@@ -3,7 +3,9 @@
 module DockerSwarm
   # Helper module to centralize logging logic and formatting
   module LogHelper
-    SENSITIVE_KEYS = /password|token|api_key|auth|secret|data/i.freeze
+    # `data` se matchea con \b para que `Data` (Secret/Config) se filtre
+    # pero `metadata` u otras claves no caigan en falso positivo.
+    SENSITIVE_KEYS = /password|pass|passwd|secret|token|api_key|auth|\bdata\b/i.freeze
 
     # Formats a hash into a KV structured string with sensitive data masking
     # @param payload [Hash] The data to format
