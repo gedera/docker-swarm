@@ -99,11 +99,11 @@ Reinicio sin downtime equivalente a `docker service update --force`: incrementa 
 
 ```mermaid
 flowchart LR
-    A[service.restart] --> B[lee Spec.TaskTemplate.ForceUpdate]
-    B --> C[current = ForceUpdate || 0]
-    C --> D[update Spec: TaskTemplate: ForceUpdate: current+1]
-    D --> E[POST /services/id/update?version=X]
-    E --> F[Docker recrea tasks]
+    A["service.restart"] --> B["lee Spec.TaskTemplate.ForceUpdate"]
+    B --> C["current = ForceUpdate o 0 si nil"]
+    C --> D["update Spec: TaskTemplate: ForceUpdate: current+1"]
+    D --> E["POST /services/id/update?version=X"]
+    E --> F["Docker recrea tasks"]
 ```
 
 **Notas load-bearing:**
