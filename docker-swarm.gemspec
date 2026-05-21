@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
 
   spec.summary       = "A Ruby ORM and API client for Docker Swarm."
   spec.description   = "Simplifies interactions with Docker Swarm through an ActiveModel-compatible ORM and a robust Excon-based API client."
-  spec.homepage      = "https://github.com/wispro/docker-swarm"
+  spec.homepage      = "https://github.com/gedera/docker-swarm"
   spec.license       = "MIT"
   spec.required_ruby_version = Gem::Requirement.new(">= 3.2.0")
 
