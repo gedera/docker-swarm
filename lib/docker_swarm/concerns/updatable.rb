@@ -6,13 +6,14 @@ module DockerSwarm
       extend ActiveSupport::Concern
 
       def update(new_attributes = {})
+        current_version = self.Version&.dig("Index")
         assign_attributes(new_attributes) if new_attributes.present?
         return false unless valid?
 
         Api.request(
           action: self.class.routes[:update],
           arguments: { id: self.ID },
-          query_params: { version: self.Version&.dig("Index") },
+          query_params: { version: current_version },
           payload: payload_for_docker
         )
 
