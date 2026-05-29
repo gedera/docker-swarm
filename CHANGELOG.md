@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.1] — 2026-05-29
+
+### Correcciones
+- `Updatable#update`: captura `Version.Index` **antes** de `assign_attributes` para evitar que un payload con versión desactualizada pise el índice real del nodo y provoque `update out of sequence` en Docker — @Pablo
+
 ## [0.7.0] — 2026-05-21
 
 ### Breaking changes
