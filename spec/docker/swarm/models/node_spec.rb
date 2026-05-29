@@ -27,5 +27,13 @@ RSpec.describe DockerSwarm::Node do
 
       expect(node.update(Spec: { Role: "worker" })).to be true
     end
+
+    it "uses the pre-existing Version index even when new_attributes includes a stale Version" do
+      expect(DockerSwarm::Api).to receive(:request).with(
+        hash_including(query_params: { version: 10 })
+      ).and_return(true)
+
+      node.update("Version" => { "Index" => 5 }, "Spec" => { "Role" => "worker" })
+    end
   end
 end
