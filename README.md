@@ -49,7 +49,7 @@ Documentación normada (RFC-001) por capa:
 | Topología | — | F2 pendiente |
 | Eventos | — | `n/a` (la gema no emite eventos) |
 
-`n/a` = no aplica al tipo de repo. F2 pendiente = capa declarada en la RFC pero todavía no implementada en `dev-structure`; el contenido relevante vive transitoriamente en `skill/SKILL.md` (RFC-008 §2 coexistencia transitoria).
+`n/a` = no aplica al tipo de repo. F2 pendiente = capa declarada en la RFC pero todavía no implementada en `arch-structure`; el contenido relevante vive transitoriamente en `skill/SKILL.md` (RFC-008 §2 coexistencia transitoria).
 
 ## Desarrollo
 
