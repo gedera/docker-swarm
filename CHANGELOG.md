@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.7.2] — 2026-06-29
+
+### Documentación
+- Regenerar la capa de configuración conforme RFC-012 (`docs/config/configuracion.md`): inventario de las 7 opciones runtime del bloque `configure`, sin env vars, ninguna secreta — @Gabriel
+- Reindexar `skill/SKILL.md` §4 para apuntar al nuevo artefacto de configuración — @Gabriel
+- Instaurar `AGENTS.md` (stanza "Mapa de conocimiento") y normalizar `skills.yml` al molde fleet — @Gabriel
+
+### Mejoras internas
+- Bump excon 1.4.2 → 1.5.0 — @Gabriel
+
 ## [0.7.1] — 2026-05-29
 
 ### Correcciones
