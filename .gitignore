@@ -1,3 +1,8 @@
 .agents/
 # Variables de entorno
 .env
+# Reportes efímeros (critias, mvf, etc.)
+/tmp/
+# Perfil local + runs de multi-vendor-feedback (paths de máquina)
+/vendors.local.yaml
+/mvf-runs/

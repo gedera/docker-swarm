@@ -6,9 +6,27 @@ Gema Ruby que provee un ORM compatible con ActiveModel para Docker Engine API. P
 
 ## Documentación
 
-- **Para humanos**: `docs/` (5 archivos) + `README.md`. Ver README para índice.
+- **Para humanos**: `docs/` + `README.md`. Ver README para índice.
 - **Para agentes AI**: `skill/SKILL.md` + `skill/references/`. Es la skill empaquetada que otros proyectos consumen via `skill-manager sync`.
 - **Nunca referenciar `skill/` desde `docs/` o `README.md`** — son audiencias distintas.
+
+## Mapa de conocimiento
+
+Wayfinding in-repo de los artefactos de arquitectura (RFC-008 r2). Espejo del "Índice de artefactos" del README.
+
+| Capa | RFC | Artefacto | Estado |
+|---|---|---|---|
+| Datos | RFC-002 | — | `n/a` (gema sin DB) |
+| Glosario | RFC-009 | `docs/glossary/glossary.md` | completo |
+| Comportamiento | RFC-007 | `docs/behavior/behavior.md` | backfill on-demand (8 flujos) |
+| Configuración | RFC-012 | `docs/config/configuracion.md` | inventario base (7 opciones, sin env vars) |
+| API (operaciones) | RFC-003 | — | F2 pendiente; contrato inline en `skill/SKILL.md` |
+| Interfaz | RFC-004 | — | F2 pendiente; contrato inline en `skill/SKILL.md` |
+| Topología | RFC-006 | — | F2 pendiente |
+| Errores | RFC-020 | — | F2 pendiente; `lib/docker_swarm/errors.rb` |
+| Consumidas | RFC-018 | — | F2 pendiente (Docker Engine API) |
+| Test | RFC-013 | — | F2 pendiente |
+| Eventos | RFC-005 | — | `n/a` (la gema no emite eventos) |
 
 ## Convenciones del framework
 
