@@ -44,12 +44,13 @@ Documentación normada (RFC-001) por capa:
 | Datos | — | `n/a` (gema sin DB) |
 | Glosario | [`docs/glossary/glossary.md`](docs/glossary/glossary.md) | F1 completo |
 | Comportamiento | [`docs/behavior/behavior.md`](docs/behavior/behavior.md) | F1 backfill on-demand (8 flujos) |
+| Configuración | [`docs/config/configuracion.md`](docs/config/configuracion.md) | F6 inventario base (7 opciones, sin env vars) |
 | API (operaciones) | — | F2 pendiente; contrato resumido inline en `skill/SKILL.md` |
 | Interfaz | — | F2 pendiente; contrato resumido inline en `skill/SKILL.md` |
 | Topología | — | F2 pendiente |
 | Eventos | — | `n/a` (la gema no emite eventos) |
 
-`n/a` = no aplica al tipo de repo. F2 pendiente = capa declarada en la RFC pero todavía no implementada en `dev-structure`; el contenido relevante vive transitoriamente en `skill/SKILL.md` (RFC-008 §2 coexistencia transitoria).
+`n/a` = no aplica al tipo de repo. F2 pendiente = capa declarada en la RFC pero todavía no implementada en `arch-structure`; el contenido relevante vive transitoriamente en `skill/SKILL.md` (RFC-008 §2 coexistencia transitoria).
 
 ## Desarrollo
 
