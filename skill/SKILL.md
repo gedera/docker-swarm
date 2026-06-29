@@ -166,6 +166,7 @@ Logs salen en formato KV (`component=docker_swarm.connection event=request_succe
 
 - [`docs/glossary/glossary.md`](docs/glossary/glossary.md) — definición de términos (primitivas Docker + conceptos internos).
 - [`docs/behavior/behavior.md`](docs/behavior/behavior.md) — secuencias load-bearing (create+reload, update+Version, retry-policy, error-mapping, etc.).
+- [`docs/config/configuracion.md`](docs/config/configuracion.md) — inventario de configuración runtime (7 opciones del bloque `configure`, sin env vars, ninguna secreta). El bloque de arriba es el resumen; shape/defaults/consumidores en el detalle.
 - `docs/data/` — `n/a` (gema sin DB).
 - `docs/api/`, `docs/interface/`, `docs/topology/` — F2 declaradas, **no implementadas**. El contrato resumido de arriba reside **transitoriamente** acá (RFC-008 §2 coexistencia transitoria con destino pendiente).
 
