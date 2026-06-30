@@ -20,12 +20,12 @@ Wayfinding in-repo de los artefactos de arquitectura (RFC-008 r2). Espejo del "�
 | Glosario | RFC-009 | `docs/glossary/glossary.md` | completo |
 | Comportamiento | RFC-007 | `docs/behavior/behavior.md` | backfill on-demand (8 flujos) |
 | Configuración | RFC-012 | `docs/config/configuracion.md` | inventario base (7 opciones, sin env vars) |
-| API (operaciones) | RFC-003 | — | F2 pendiente; contrato inline en `skill/SKILL.md` |
-| Interfaz | RFC-004 | — | F2 pendiente; contrato inline en `skill/SKILL.md` |
-| Topología | RFC-006 | — | F2 pendiente |
-| Errores | RFC-020 | — | F2 pendiente; `lib/docker_swarm/errors.rb` |
-| Consumidas | RFC-018 | — | F2 pendiente (Docker Engine API) |
-| Test | RFC-013 | — | F2 pendiente |
+| Interfaz | RFC-004 | `docs/interface/interface.md` | API Ruby pública (11 modelos + Base + concerns) |
+| Topología | RFC-006 | `docs/topology/topology.md` | 3 deps runtime + grafo de contexto |
+| Errores | RFC-020 | `docs/errors/errors.md` | estructura (jerarquía + mapeo HTTP; política §c pendiente enrich) |
+| Consumidas | RFC-018 | `docs/consumed/docker-engine-api.md` | estructura (Docker Engine API; §c/§e pendiente enrich) |
+| Test | RFC-013 | `docs/test/testing.md` | estructura (RSpec unit+integration; §e-h pendiente enrich) |
+| API (operaciones) | RFC-003 | — | `n/a` (gema sin superficie HTTP/CLI/eventos; superficie pública = Interfaz) |
 | Eventos | RFC-005 | — | `n/a` (la gema no emite eventos) |
 
 ## Convenciones del framework
