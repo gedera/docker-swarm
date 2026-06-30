@@ -1,6 +1,6 @@
 # Dependencias consumidas — docker-swarm
 
-> meta: artefacto · RFC-018 · generado arch-structure · anclado a `15bcd21` · cobertura: superficie del Docker Engine API consumida por la gema (`api.rb` ENDPOINTS + `connection.rb`); §c/§e sembradas `—` para arch-enrich
+> meta: artefacto · RFC-018 · generado arch-structure + enriquecido arch-enrich · anclado a `15bcd21` · cobertura: superficie del Docker Engine API consumida por la gema (`api.rb` ENDPOINTS + `connection.rb`); §c/§e enriquecidas 1/1
 
 ## 1. Resumen
 
@@ -73,20 +73,33 @@ El daemon responde con status HTTP; `Middleware::ErrorHandler` los mapea a la je
 
 #### c. Retry / idempotencia (semántica)
 
+**Estructural** (anclado a `connection.rb:24-33`):
+
 | aspecto | valor |
 |---|---|
-| métodos con retry | `get/head/put/delete/options` (`Connection::IDEMPOTENT_METHODS`) — dato estructural |
+| métodos con retry | `get/head/put/delete/options` (`Connection::IDEMPOTENT_METHODS`) |
 | reintentos | `max_retries` (default 3), solo en métodos idempotentes; POST/PATCH = 0 |
-| errores reintentados | `Excon::Error::Socket`, `Excon::Error::Timeout` (`connection.rb:28`) |
-| idempotencia semántica / degradación | — |
+| errores reintentados | `Excon::Error::Socket`, `Excon::Error::Timeout` |
+| backoff | ninguno — reintento inmediato (no se setea `retry_interval`) |
+
+**Semántica:** la frontera idempotente/no-idempotente refleja la del Docker Engine API:
+
+- `GET`/`DELETE`/`PUT` son seguros de reintentar: re-listar, re-borrar (404 → `nil` graceful) o re-actualizar produce el mismo estado final → la gema los reintenta automáticamente ante caída de socket.
+- `POST create` (services/networks/volumes/configs/secrets/containers) **no** se reintenta: un replay tras fallo parcial podría crear un recurso duplicado (el daemon no deduplica por nombre en todos los recursos). El caller decide qué hacer si un `create` falla por `Communication`.
+- `POST update`/`start`/`stop`/`restart` tampoco se reintentan (son POST); `update` además acarrea `?version=` → un replay con versión vieja daría 409 `Conflict`, no un duplicado.
+- **Sin backoff** es aceptable acá: el socket Unix local rara vez está transitoriamente saturado; ante un daemon caído, 3 reintentos inmediatos fallan rápido y se propaga `Communication`.
 
 #### e. Degradación (si la dependencia cae)
 
-| escenario | comportamiento |
+| escenario | comportamiento de la gema |
 |---|---|
-| (todos) | — |
+| socket caído / daemon no responde | tras `max_retries` (idempotentes) o inmediato (POST), levanta `DockerSwarm::Error::Communication` con el `Excon::Error::Socket` en `cause` |
+| daemon devuelve 5xx | levanta la `Error::*` correspondiente (502/503/504) sin reintento HTTP |
+| fallback / cola / circuit-breaker | **ninguno** — la gema es un cliente fino, fail-fast; no encola ni degrada |
+| responsabilidad del consumidor | decidir reintento con backoff, fallback o propagación; la gema solo provee el error tipado |
 
-> §c semántica + §e sembradas `—` (RFC-018). Lo completa `arch-enrich`. Lo estructural (qué métodos reintentan, con qué límite, qué errores Excon disparan retry) ya está arriba, derivado de `connection.rb`.
+- **SLA del proveedor:** n/a — el daemon Docker suele ser local (socket Unix) o de infraestructura propia; no hay SLA externo que documentar.
+- **Sin estado degradado:** la gema no cachea ni mantiene estado entre llamadas; si el daemon cae, cada operación falla independientemente. No hay "modo degradado" que activar/desactivar.
 
 ## 3. Inferencias
 
