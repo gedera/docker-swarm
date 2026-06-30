@@ -164,11 +164,16 @@ Logs salen en formato KV (`component=docker_swarm.connection event=request_succe
 
 ## Índice de artefactos
 
+- [`docs/interface/interface.md`](docs/interface/interface.md) — API Ruby pública (11 modelos + `Base` + concerns + `Api`/`Connection`). La tabla de símbolos de arriba es el resumen; el detalle por símbolo acá.
+- [`docs/errors/errors.md`](docs/errors/errors.md) — jerarquía de excepciones + mapeo status HTTP → excepción. La tabla de errores de arriba es el resumen.
+- [`docs/consumed/docker-engine-api.md`](docs/consumed/docker-engine-api.md) — superficie del Docker Engine API consumida (`Api::ENDPOINTS`) + política de retry estructural.
 - [`docs/glossary/glossary.md`](docs/glossary/glossary.md) — definición de términos (primitivas Docker + conceptos internos).
 - [`docs/behavior/behavior.md`](docs/behavior/behavior.md) — secuencias load-bearing (create+reload, update+Version, retry-policy, error-mapping, etc.).
 - [`docs/config/configuracion.md`](docs/config/configuracion.md) — inventario de configuración runtime (7 opciones del bloque `configure`, sin env vars, ninguna secreta). El bloque de arriba es el resumen; shape/defaults/consumidores en el detalle.
+- [`docs/topology/topology.md`](docs/topology/topology.md) — dependencias runtime (3) + grafo de contexto.
+- [`docs/test/testing.md`](docs/test/testing.md) — estructura de la suite RSpec (unit + integration) y comandos de corrida.
 - `docs/data/` — `n/a` (gema sin DB).
-- `docs/api/`, `docs/interface/`, `docs/topology/` — F2 declaradas, **no implementadas**. El contrato resumido de arriba reside **transitoriamente** acá (RFC-008 §2 coexistencia transitoria con destino pendiente).
+- `docs/api/` (operaciones), `docs/events/` — `n/a` (la gema no expone superficie HTTP/CLI/eventos propia; su superficie pública es la interfaz Ruby).
 
 ## Versionado del contrato
 
