@@ -1,4 +1,6 @@
 .agents/
+# Symlink a ../.agents/skills (no versionar)
+.claude/skills
 # Variables de entorno
 .env
 # Reportes efímeros (critias, mvf, etc.)
