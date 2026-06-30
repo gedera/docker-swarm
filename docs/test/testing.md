@@ -73,7 +73,7 @@ Ninguna. No hay `SimpleCov`/`.simplecov` ni umbral declarado en el repo (verific
 
 ### g. Link a incidente
 
-`unknown` — no hay incidentes/regresiones registrados asociados a tests de este repo (sin `refs incidente/PR` localizables). Ausencia ≠ inexistencia: se completará si un test nace de un incidente.
+`unknown` — **por ausencia de fuente, no por verificación de que no existan.** No hay un tracker de incidentes vinculado a este repo ni `refs incidente/PR` en los specs o en el historial localizable; por tanto no se puede afirmar ni que haya ni que no haya tests nacidos de un incidente. No es "cero incidentes verificado". Se completará si/cuando un test de regresión se ate explícitamente al bug que previene.
 
 ### h. PII / datos sensibles en fixtures
 
