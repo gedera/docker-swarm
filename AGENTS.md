@@ -22,9 +22,9 @@ Wayfinding in-repo de los artefactos de arquitectura (RFC-008 r2). Espejo del "�
 | Configuración | RFC-012 | `docs/config/configuracion.md` | inventario base (7 opciones, sin env vars) |
 | Interfaz | RFC-004 | `docs/interface/interface.md` | API Ruby pública (11 modelos + Base + concerns) |
 | Topología | RFC-006 | `docs/topology/topology.md` | 3 deps runtime + grafo de contexto |
-| Errores | RFC-020 | `docs/errors/errors.md` | estructura (jerarquía + mapeo HTTP; política §c pendiente enrich) |
-| Consumidas | RFC-018 | `docs/consumed/docker-engine-api.md` | estructura (Docker Engine API; §c/§e pendiente enrich) |
-| Test | RFC-013 | `docs/test/testing.md` | estructura (RSpec unit+integration; §e-h pendiente enrich) |
+| Errores | RFC-020 | `docs/errors/errors.md` | jerarquía + mapeo HTTP + política §c |
+| Consumidas | RFC-018 | `docs/consumed/docker-engine-api.md` | Docker Engine API + retry/degradación §c/§e |
+| Test | RFC-013 | `docs/test/testing.md` | RSpec unit+integration + gaps/contract/PII §e-h (§g sin incidentes) |
 | API (operaciones) | RFC-003 | — | `n/a` (gema sin superficie HTTP/CLI/eventos; superficie pública = Interfaz) |
 | Eventos | RFC-005 | — | `n/a` (la gema no emite eventos) |
 

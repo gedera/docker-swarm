@@ -1,6 +1,6 @@
 # Errores — docker-swarm
 
-> meta: artefacto · RFC-020 · generado arch-structure · anclado a `15bcd21` · cobertura: excepciones públicas que la gema emite (`lib/docker_swarm/errors.rb` + `middleware/error_handler.rb`); política (§c) sembrada `—` para arch-enrich
+> meta: artefacto · RFC-020 · generado arch-structure + enriquecido arch-enrich · anclado a `15bcd21` · cobertura: excepciones públicas que la gema emite (`lib/docker_swarm/errors.rb` + `middleware/error_handler.rb`); política §c 15/15 enriquecida
 
 ## 1. Resumen
 
@@ -62,13 +62,28 @@ No aplica un shape propio tipo RFC 7807: la gema es un cliente, no un servidor. 
 - `exception.message` — el `message`/`error` del body de Docker (o el body crudo en 422), o `"Docker socket error: ..."` en `Communication`.
 - `exception.cause` — en `Communication`, el `Excon::Error::Socket` original queda accesible (`connection.rb:47,61`).
 
-### c. Política (retriable / backoff / idempotencia / acción)
+### c. Política por error (retriable · backoff · idempotencia · acción)
 
-| excepción | política |
-|---|---|
-| (todas) | — |
+> **Mecanismo (anclado a `connection.rb:24-33`):** el auto-retry de la gema opera **solo a nivel transporte** — reintenta `Excon::Error::Socket` y `Excon::Error::Timeout` en métodos idempotentes (`get/head/put/delete/options`), `max_retries=3`, **sin backoff** (reintento inmediato, no hay `retry_interval`). Los errores **HTTP 4xx/5xx NO se auto-reintentan**: una vez que llega una respuesta con status, `ErrorHandler` levanta y no hay retry. La columna "retriable" abajo es por tanto **recomendación al consumidor**, no comportamiento automático (salvo `Communication`).
 
-> Sembrado `—` (RFC-020 §c). Lo completa `arch-enrich`. Dato estructural relacionado ya verificable: el retry automático lo decide el **método HTTP** (`Connection::IDEMPOTENT_METHODS = get/head/put/delete/options`, `max_retries=3`), no la clase de error; POST/PATCH no reintentan (ver [`docs/consumed/`](../consumed/docker-engine-api.md) §c y `docs/behavior/`).
+> **Acción:** la gema **siempre loguea** el fallo (`request_failure`, nivel ERROR, `connection.rb:49`) y **propaga** (raise). No hay integración de observabilidad (Sentry/exis_ray) en la gema → `escalate`/`report` quedan al consumidor. Por eso la acción base de todas es **log + propagate**; la columna marca el matiz por error.
+
+| excepción | retriable? (consumidor) | backoff | idempotencia requerida | acción / nota |
+|---|---|---|---|---|
+| `BadRequest` (400) | no | — | — | propagate — corregir payload |
+| `Unauthorized` (401) | no | — | — | propagate — corregir credenciales/TLS |
+| `Forbidden` (403) | no | — | — | propagate — op no permitida en este rol |
+| `NotFound` (404) | no | — | — | `find`/`destroy` la absorben → `nil`; resto propagate |
+| `NotAcceptable` (406) | no | — | — | propagate |
+| `RequestTimeout` (408) | condicional | sí | sí (si POST) | retry solo en op idempotente; subir `read_timeout` |
+| `Conflict` (409) | condicional | — | sí | si `Version.Index` stale → `reload` + reintentar `update`; si nombre duplicado → no retriable, propagate |
+| `UnprocessableEntity` (422) | no | — | — | propagate — payload semánticamente inválido |
+| `TooManyRequests` (429) | sí | sí | no | backoff + retry (rate limit del daemon) |
+| `InternalServerError` (500) | condicional | sí | sí | retry en op idempotente; revisar payload (update sin `version` → 500) |
+| `BadGateway` (502) | sí | sí | sí (si POST) | transitorio (proxy); retry seguro en op idempotente |
+| `ServiceUnavailable` (503) | sí | sí | sí (si POST) | daemon reiniciando; retry con backoff |
+| `GatewayTimeout` (504) | sí | sí | sí (si POST) | transitorio; retry en op idempotente |
+| `Communication` (socket) | sí (auto) | no | sí (si POST) | la gema YA reintteta Socket/Timeout en métodos idempotentes (`max_retries`, sin backoff); en POST no reintenta → el caller decide |
 
 ## 3. Inferencias
 
@@ -76,9 +91,11 @@ No aplica un shape propio tipo RFC 7807: la gema es un cliente, no un servidor. 
 |---|---|---|
 | El "cuándo" de cada status (ej. 403 = swarm op en worker) refleja el comportamiento de Docker, no lógica de la gema | inferred | el mapeo es status→excepción genérico; la causa la fija el daemon. Notas tomadas de `skill/SKILL.md` |
 | `UnprocessableEntity` recibe el `body` crudo (no `error_message`) a propósito (422 suele traer detalle estructurado) | declared | `error_handler.rb:25` — divergencia explícita del resto |
+| §c columna "retriable" = recomendación al consumidor basada en semántica HTTP/Docker; la gema **no** auto-reintenta status HTTP (solo Socket/Timeout) | inferred | mecanismo anclado a `connection.rb`; la política por-status la confirma el humano contra el comportamiento real del daemon |
+| 409 `Conflict` con `Version.Index` stale → patrón reload+retry | inferred | el `update` extrae `Version.Index` (`updatable.rb:9`); el reload-on-conflict es decisión del consumidor, no automática |
 
 ## 4. Cobertura y fronteras
 
 - **Solo errores públicos:** estas excepciones cruzan la frontera de la gema hacia el consumidor. No hay excepciones internas rescatadas-y-tragadas que documentar (salvo `JSON::ParserError` en `ResponseJSONParser`, que se traga y retorna el body crudo — interno, no contrato).
 - **Frontera con consumed (RFC-018):** este catálogo = lo que la gema **emite**. El mapeo "error del proveedor Docker → excepción nuestra" lo referencia [`docs/consumed/docker-engine-api.md`](../consumed/docker-engine-api.md) §d, que apunta acá.
-- **Política §c:** pendiente de `arch-enrich`.
+- **Política §c:** enriquecida (recomendación al consumidor); el matiz por-status lo confirma el humano contra el comportamiento real del daemon (ver §3).

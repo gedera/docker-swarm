@@ -1,6 +1,6 @@
 # Test — docker-swarm
 
-> meta: artefacto · RFC-013 · generado arch-structure · anclado a `15bcd21` · cobertura: estructura de la suite (`spec/`, `.github/workflows/main.yml`); §e-§h (gaps/contract-assessment/incidente/PII) sembradas `—` para arch-enrich
+> meta: artefacto · RFC-013 · generado arch-structure + enriquecido arch-enrich · anclado a `15bcd21` · cobertura: estructura de la suite (`spec/`, `.github/workflows/main.yml`); §e enriquecida, §f enriquecida, §g `unknown` (sin incidentes registrados), §h enriquecida
 
 ## 1. Resumen
 
@@ -44,16 +44,46 @@ CI **no** corre integration (no hay daemon en el runner). Se dispara en push a `
 
 Ninguna. No hay `SimpleCov`/`.simplecov` ni umbral declarado en el repo (verificado: sin `SimpleCov` en `spec/` ni en `Gemfile.lock`).
 
-### e–h. Enriquecimiento (gaps · contract-assessment · incidente · PII)
+### e. Gaps de cobertura (narrado)
 
-| dimensión | estado |
-|---|---|
-| §e gaps de cobertura | — |
-| §f contract-assessment (cubren RFC-004/018/020) | — |
-| §g link a incidente | — |
-| §h PII en fixtures | — |
+> Cobertura declarada — qué flujos de negocio están ejercitados y cuáles no. No es el % de líneas (no hay SimpleCov, §d).
 
-> Sembrado `—` (RFC-013, mitad enrich). Lo completa `arch-enrich`.
+**Cubierto (unit, con mocks):**
+- Mapeo de errores HTTP → excepción: `error_handler_spec` (subset de status verificado: 200, 404, 429, 500 — no los 14).
+- Modelos con métodos propios: `service` (incl. lógica de update/version), `node`, `task`, `container` (start/stop), `network`, `base` (accessors dinámicos, `assign_attributes`/`Spec` merge).
+- CRUD genérico de `config`, `secret`, `volume`, `image`: vía `shared_crud_spec` (`it_behaves_like "a crud resource"`) — no tienen spec dedicado pero **sí** están cubiertos (create/find/destroy).
+- Infra de transporte: `api_spec`, `connection_spec`, `configuration_spec`, `log_helper_spec`, los 3 middleware specs.
+- `swarm`, `system` (singletons): `swarm_spec`, `system_spec`.
+
+**Cubierto (integration, daemon real):** lifecycle de containers, services, infra (networks/volumes), system (info/version/up/df), security (config/secret create+find+destroy).
+
+**Gaps declarados:**
+- `error_handler_spec` ejercita **un subset** de los 14 status; 400/401/403/406/408/409/422/502/503/504 y el fallback genérico no tienen aserción dedicada (gap de contrato §f).
+- `Service#restart`, `Loggable#logs` y `Image.create` (pull `fromImage`) — cobertura unit no confirmada por spec dedicado; verificar.
+- `X-Registry-Auth` (pull con registry privado): **no soportado y no testeado** (gap intencional, ver `skill/SKILL.md`).
+- Path de error `Communication` (socket caído) y la política de retry idempotente: no confirmado que haya spec dedicado en `connection_spec` (verificar).
+
+### f. Contract-assessment (¿los tests ejercitan los contratos públicos?)
+
+| contrato | RFC | cubierto | nota |
+|---|---|---|---|
+| Interfaz Ruby pública | RFC-004 | parcial | model specs + `shared_crud` ejercitan `all/find/create/update/destroy/logs`; falta aserción sistemática de toda la superficie |
+| Errores públicos | RFC-020 | parcial | `error_handler_spec` cubre el mapeo status→excepción pero **solo 4 de 14 status** → contrato de errores incompletamente verificado |
+| Docker Engine API consumida | RFC-018 | sí (integration) | los specs `type: :integration` ejercitan el contrato real contra el daemon; unit lo mockea |
+
+### g. Link a incidente
+
+`unknown` — no hay incidentes/regresiones registrados asociados a tests de este repo (sin `refs incidente/PR` localizables). Ausencia ≠ inexistencia: se completará si un test nace de un incidente.
+
+### h. PII / datos sensibles en fixtures
+
+**Sin PII real ni secretos reales.** Clasificación (no valores):
+
+- Nombres de recursos: generados con `random_name(prefix)` → `SecureRandom.hex(4)` (`integration_helper.rb:26`). Sintéticos.
+- `Config`/`Secret` Data en integration: literales de prueba base64 (`Base64.strict_encode64("hello world")`, `"top secret"` — `security_spec.rb`). **No** son credenciales reales; son strings de test.
+- Unit specs: payloads inline mockeados, sin datos reales.
+
+No cruza RFC-026 (no hay PII de personas ni secretos productivos en fixtures).
 
 ## 3. Inferencias
 
