@@ -25,6 +25,7 @@ Wayfinding in-repo de los artefactos de arquitectura (RFC-008 r2). Espejo del "�
 | Errores | RFC-020 | `docs/errors/errors.md` | jerarquía + mapeo HTTP + política §c |
 | Consumidas | RFC-018 | `docs/consumed/docker-engine-api.md` | Docker Engine API + retry/degradación §c/§e |
 | Test | RFC-013 | `docs/test/testing.md` | RSpec unit+integration + gaps/contract/PII §e-h (§g sin incidentes) |
+| Release | RFC-014 | `docs/release/release.md` | §a estructura (tag `v*`→RubyGems, patrón 1); deploy/rollback/ambientes/dueño pendientes (enrich) |
 | API (operaciones) | RFC-003 | — | `n/a` (gema sin superficie HTTP/CLI/eventos; superficie pública = Interfaz) |
 | Eventos | RFC-005 | — | `n/a` (la gema no emite eventos) |
 

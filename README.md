@@ -50,6 +50,7 @@ Documentación normada (RFC-001) por capa:
 | Errores | [`docs/errors/errors.md`](docs/errors/errors.md) | jerarquía + mapeo HTTP + política §c |
 | Consumidas | [`docs/consumed/docker-engine-api.md`](docs/consumed/docker-engine-api.md) | Docker Engine API + retry/degradación §c/§e |
 | Test | [`docs/test/testing.md`](docs/test/testing.md) | suite RSpec unit+integration + gaps/contract/PII §e-h (§g sin incidentes) |
+| Release | [`docs/release/release.md`](docs/release/release.md) | §a estructura (tag `v*`→RubyGems, patrón 1); deploy/rollback/ambientes/dueño pendientes (enrich) |
 | API (operaciones) | — | `n/a` (gema sin superficie HTTP/CLI/eventos; superficie pública = Interfaz) |
 | Eventos | — | `n/a` (la gema no emite eventos) |
 
