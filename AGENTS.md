@@ -28,6 +28,9 @@ Wayfinding in-repo de los artefactos de arquitectura (RFC-008 r2). Espejo del "�
 | Release | RFC-014 | `docs/release/release.md` | §a estructura (tag `v*`→RubyGems, patrón 1); deploy/rollback/ambientes/dueño pendientes (enrich) |
 | API (operaciones) | RFC-003 | — | `n/a` (gema sin superficie HTTP/CLI/eventos; superficie pública = Interfaz) |
 | Eventos | RFC-005 | — | `n/a` (la gema no emite eventos) |
+| Seguridad | RFC-017 | — | `n/a` (sin authn/authz propios; la frontera auth-hacia-Docker vive en `docs/consumed/docker-engine-api.md` §a) |
+| Multi-tenancy | RFC-023 | — | `n/a` (gema stateless sin DB ni scope de tenant) |
+| Data-lifecycle | RFC-026 | — | `n/a` (sin persistencia/PII/retención; fixtures sintéticas) |
 
 ## Convenciones del framework
 

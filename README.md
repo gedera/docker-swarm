@@ -53,6 +53,9 @@ Documentación normada (RFC-001) por capa:
 | Release | [`docs/release/release.md`](docs/release/release.md) | §a estructura (tag `v*`→RubyGems, patrón 1); deploy/rollback/ambientes/dueño pendientes (enrich) |
 | API (operaciones) | — | `n/a` (gema sin superficie HTTP/CLI/eventos; superficie pública = Interfaz) |
 | Eventos | — | `n/a` (la gema no emite eventos) |
+| Seguridad | — | `n/a` (sin authn/authz propios; frontera auth-hacia-Docker en `docs/consumed/docker-engine-api.md` §a) |
+| Multi-tenancy | — | `n/a` (gema stateless sin DB ni scope de tenant) |
+| Data-lifecycle | — | `n/a` (sin persistencia/PII/retención; fixtures sintéticas) |
 
 `n/a` = no aplica al tipo de repo.
 
