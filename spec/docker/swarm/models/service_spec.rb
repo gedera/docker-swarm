@@ -97,4 +97,32 @@ RSpec.describe DockerSwarm::Service do
       expect(service.logs).to eq("log line 1\nlog line 2")
     end
   end
+
+  # Characterization: fija cómo se invocan hoy create/update (formas históricas)
+  # ANTES de agregar las opciones registry_auth/registry_auth_from.
+  # Estos ejemplos deben seguir verdes tras migrar la firma a `**opts` con extracción:
+  # confirman que los keywords sueltos históricos no se rompen (Ruby 3 separa keyword/hash).
+  describe "manejo de argumentos (characterization — pin pre-registry_auth)" do
+    before do
+      allow(DockerSwarm::Api).to receive(:request).and_return({ "ID" => "123" })
+      allow(DockerSwarm::Api).to receive(:request)
+        .with(hash_including(action: described_class.routes[:show])).and_return(valid_attributes)
+    end
+
+    it "acepta un hash braceado posicional" do
+      expect { described_class.create({ Name: "web", Spec: { Name: "web" } }) }.not_to raise_error
+    end
+
+    it "acepta keywords sueltos históricos (Name:, Spec:)" do
+      expect { described_class.create(Name: "web", Spec: { Name: "web" }) }.not_to raise_error
+    end
+
+    it "acepta claves string" do
+      expect { described_class.create({ "Name" => "web", "Spec" => { "Name" => "web" } }) }.not_to raise_error
+    end
+
+    it "update acepta keywords sueltos (la forma que usa #restart)" do
+      expect { service.update(Spec: { TaskTemplate: { ForceUpdate: 1 } }) }.not_to raise_error
+    end
+  end
 end
