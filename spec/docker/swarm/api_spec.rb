@@ -26,5 +26,27 @@ RSpec.describe DockerSwarm::Api do
 
       expect(response).to eq({ "Status" => "OK" })
     end
+
+    # Canal de headers (default vacío = request idéntica a la actual).
+    it "no incluye la clave :headers cuando no se pasan (compatibilidad)" do
+      expect(DockerSwarm).to receive(:request) do |opts|
+        expect(opts).not_to have_key(:headers)
+        {}
+      end
+
+      described_class.request(action: action, arguments: arguments)
+    end
+
+    it "forwardea :headers a DockerSwarm.request cuando se pasan" do
+      expect(DockerSwarm).to receive(:request).with(
+        hash_including(headers: { "X-Registry-Auth" => "opaque-token" })
+      ).and_return({})
+
+      described_class.request(
+        action: action,
+        arguments: arguments,
+        headers: { "X-Registry-Auth" => "opaque-token" }
+      )
+    end
   end
 end
