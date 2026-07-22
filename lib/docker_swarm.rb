@@ -44,6 +44,7 @@ require_relative "docker_swarm/middleware/response_json_parser"
 require_relative "docker_swarm/middleware/error_handler"
 require_relative "docker_swarm/connection"
 require_relative "docker_swarm/api"
+require_relative "docker_swarm/registry_auth"
 
 # Concerns deben cargarse antes que Base si Base los incluye
 require_relative "docker_swarm/concerns/creatable"
