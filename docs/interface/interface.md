@@ -15,7 +15,7 @@ Proyección RBS-conceptual: `símbolo · tipo · nota` (raíz → profundidad �
 | símbolo | tipo | nota |
 |---|---|---|
 | `DockerSwarm` | módulo | namespace raíz |
-| `DockerSwarm::VERSION` | constante | `"0.7.2"` (`version.rb`) |
+| `DockerSwarm::VERSION` | constante | `"0.8.0"` (`version.rb`) |
 | `DockerSwarm.configuration` | attr (r/w) | instancia de `Configuration`; lazy-init en `configure`/`connection` |
 | `DockerSwarm.configure { \|config\| ... }` | método de módulo | crea/yields `Configuration`; aplica `log_level` al logger; resetea la conexión memoizada |
 | `DockerSwarm.connection` | método de módulo | `Connection` memoizada (auto-`configure` si falta) |

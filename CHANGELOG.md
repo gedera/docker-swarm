@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [0.8.0] — 2026-07-22
 
 ### Nuevas funcionalidades
 - `Service.create`/`Service#update`: soporte de autenticación de registry privado — `registry_auth` viaja en el header `X-Registry-Auth` y `registry_auth_from` (`spec`|`previous-spec`) en la query `registryAuthFrom` del update; mutuamente excluyentes y validados antes del request. La credencial nunca toca el payload ni el estado del modelo (helper `RegistryAuth`) — @Pslp
