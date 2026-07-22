@@ -83,14 +83,39 @@ RSpec.describe DockerSwarm::Image do
     end
 
     context "retorno tras terminación limpia" do
-      it "devuelve un resultado explícito { status:, image_ref:, digest? }, sin hacer find" do
-        expect(described_class).not_to receive(:find)
-        allow(DockerSwarm).to receive(:request).and_return(
-          "{\"status\":\"Downloaded newer image for #{image_ref}\",\"aux\":{\"Digest\":\"sha256:deadbeef\"}}"
-        )
+      # Forma REAL del stream de un pull (capturada contra Docker 29.5.3): el digest
+      # viaja en un frame de status "Digest: sha256:...", NO en un campo `aux`.
+      let(:digest) { "sha256:6baf43584bcb78f2e5847d1de515f23499913ac9f12bdf834811a3145eb11ca1" }
+      let(:clean_stream) do
+        [
+          "{\"status\":\"Pulling from team/app\",\"id\":\"latest\"}",
+          "{\"status\":\"Digest: #{digest}\"}",
+          "{\"status\":\"Status: Downloaded newer image for #{image_ref}\"}"
+        ].join("\n")
+      end
 
-        result = described_class.pull(image_ref)
-        expect(result).to include(status: :pulled, image_ref: image_ref)
+      it "devuelve un resultado explícito { status:, image_ref:, digest }, sin hacer find" do
+        expect(described_class).not_to receive(:find)
+        allow(DockerSwarm).to receive(:request).and_return(clean_stream)
+
+        expect(described_class.pull(image_ref)).to eq(status: :pulled, image_ref: image_ref, digest: digest)
+      end
+
+      it "up-to-date (imagen ya presente) también resuelve status :pulled con su digest" do
+        stream = [
+          "{\"status\":\"Pulling from team/app\",\"id\":\"latest\"}",
+          "{\"status\":\"Digest: #{digest}\"}",
+          "{\"status\":\"Status: Image is up to date for #{image_ref}\"}"
+        ].join("\n")
+        allow(DockerSwarm).to receive(:request).and_return(stream)
+
+        expect(described_class.pull(image_ref)).to eq(status: :pulled, image_ref: image_ref, digest: digest)
+      end
+
+      it "omite digest si el stream no emitió el frame Digest:" do
+        allow(DockerSwarm).to receive(:request).and_return("{\"status\":\"Status: Downloaded\"}")
+
+        expect(described_class.pull(image_ref)).to eq(status: :pulled, image_ref: image_ref)
       end
     end
 

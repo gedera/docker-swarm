@@ -10,6 +10,10 @@ module DockerSwarm
   class Image < Base
     include Concerns::Deletable
 
+    # Docker emite el digest del pull en un frame de status "Digest: sha256:..."
+    # (verificado empíricamente contra Docker 29.5.3; el stream de pull NO trae campo `aux`).
+    DIGEST_STATUS = /\bDigest:\s*(sha256:[0-9a-f]+)/
+
     class << self
       # Pull explícito de una imagen (POST /images/create).
       #
@@ -70,11 +74,20 @@ module DockerSwarm
       end
 
       def pull_result(image_reference, frames)
-        digest = frames.reverse_each.filter_map { |frame| frame.dig("aux", "Digest") }.first
+        digest = extract_digest(frames)
 
         result = { status: :pulled, image_ref: image_reference }
         result[:digest] = digest if digest
         result
+      end
+
+      # Escaneamos desde el final para quedarnos con el frame "Digest:" más reciente.
+      def extract_digest(frames)
+        frames.reverse_each do |frame|
+          match = DIGEST_STATUS.match(frame["status"].to_s)
+          return match[1] if match
+        end
+        nil
       end
     end
   end
