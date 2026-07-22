@@ -1,6 +1,6 @@
 # Comportamiento — docker-swarm
 
-> meta: artefacto · RFC-007 · generado dev-enrich · anclado a `a4e3129` · cobertura: backfill on-demand inicial (8 flujos load-bearing)
+> meta: artefacto · RFC-007 · generado dev-enrich · anclado a `29856f1` · cobertura: 10 flujos load-bearing (8 backfill inicial + 2 nuevos: auth de registry privado, `Image.pull` síncrono)
 
 ## 1. Resumen
 
@@ -18,12 +18,13 @@ Flujos de ejecución load-bearing de `docker-swarm`: cómo se materializan en ru
 6. Error mapping (HTTP status → excepción tipada)
 7. `Container.start` / `Container.stop`
 8. `Loggable#logs` streaming
+9. Auth de registry privado (`RegistryAuth.resolve` → `X-Registry-Auth` / `registryAuthFrom`)
+10. `Image.pull` síncrono (stream NDJSON → error tipado → resultado explícito)
 
 ### No documentados (ausencia ≠ inexistencia, RFC-007)
 
 - Reconexión / reapertura de socket Unix (Excon nativo, fuera de nuestra superficie).
 - Flujo de configuración / boot (`DockerSwarm.configure`) — trivial, sin secuencia de interés.
-- Pull de imágenes con autenticación de registry (`X-Registry-Auth`) — **no implementado** en la gema (gap conocido).
 - `Container.create` — **no implementado** en F1 (intencional, ver glossary).
 
 ## 3. Flujos
@@ -232,9 +233,63 @@ sequenceDiagram
 - El body se devuelve sin parseo (no es JSON; `ResponseJSONParser` lo respeta porque Content-Type no es `application/json`).
 - `follow: 1` mantiene la conexión abierta — el caller debe manejar el stream/timeout.
 
+### 3.9 Auth de registry privado (`X-Registry-Auth` / `registryAuthFrom`)
+
+El caller pasa una credencial **opaca base64url** (`registry_auth`) y/o la fuente a reusar (`registry_auth_from`). `RegistryAuth.resolve` valida **antes** de la request (exclusión mutua + enum del `from`) y traduce a canales de transporte, sin tocar el payload ni el estado del modelo. La credencial se sanitiza en logs vía `LogHelper`. Aplica a `Service.create`/`#update` e `Image.pull`.
+
+```mermaid
+flowchart TD
+    Start[Caller pasa registry_auth y/o registry_auth_from] --> Resolve[RegistryAuth.resolve valida y traduce]
+    Resolve --> Both{ambos presentes?}
+    Both -->|si| Err1[ArgumentError mutuamente excluyentes]
+    Both -->|no| Enum{registry_auth_from en spec o previous-spec?}
+    Enum -->|invalido| Err2[ArgumentError valor invalido]
+    Enum -->|valido o ausente| Split[arma headers y query_params]
+    Split --> Header[registry_auth va al header X-Registry-Auth]
+    Split --> Query[registry_auth_from va a la query registryAuthFrom]
+    Header --> Req[Api.request en create update o pull]
+    Query --> Req
+```
+
+**Notas load-bearing:**
+- La validación es **fail-fast local**: un caller que pasa ambos, o un `from` fuera de `spec`/`previous-spec`, corta con `ArgumentError` antes de tocar el Engine (no se deriva la ambigüedad a Docker).
+- La credencial viaja **solo** por header/query — nunca en el payload ni en el estado del modelo. `LogHelper::SENSITIVE_KEYS` la enmascara en el wire-debug.
+
+### 3.10 `Image.pull` síncrono (stream NDJSON → error tipado → resultado)
+
+`Image.pull` es síncrono: consume el stream de progreso NDJSON hasta EOF, eleva error tipado ante un frame `error`/`errorDetail` (que Docker manda **con HTTP 200**), y solo tras terminación limpia devuelve un resultado explícito construido desde el stream — sin un `find` posterior.
+
+```mermaid
+sequenceDiagram
+    actor Caller
+    participant Image as DockerSwarm::Image
+    participant RegAuth as RegistryAuth
+    participant Api as DockerSwarm::Api
+    participant Docker as Docker Engine
+
+    Caller->>Image: pull(image_reference, registry_auth)
+    Image->>RegAuth: resolve(registry_auth)
+    RegAuth-->>Image: headers con X-Registry-Auth
+    Image->>Api: request pull con fromImage y headers
+    Api->>Docker: POST /images/create?fromImage=ref
+    Docker-->>Image: stream NDJSON de progreso
+    Image->>Image: parse_progress_stream + raise_on_stream_error!
+    alt frame error o errorDetail
+        Image-->>Caller: raise Error tipado
+    else terminacion limpia
+        Image->>Image: extract_digest desde frame Digest
+        Image-->>Caller: status pulled + image_ref + digest
+    end
+```
+
+**Notas load-bearing:**
+- El middleware entrega el stream como `String` (multi-frame NDJSON) o `Hash` (frame único); `parse_progress_stream` normaliza ambos a lista de frames.
+- El digest sale del frame `Digest: sha256:...` (el stream de pull **no** trae campo `aux` — verificado contra Docker 29.5.3), escaneando desde el final.
+- Es un `POST` → **no** entra en la política de retries (ver flujo 3.5).
+
 ## 4. Cobertura y fronteras
 
-- **Cobertura inicial (RFC-007 backfill on-demand):** 8 flujos load-bearing documentados. Esta gema es chica; el backfill completo es factible y se hace ahora.
+- **Cobertura (RFC-007 backfill on-demand + incremental):** 8 flujos load-bearing en el backfill inicial + 2 agregados con el soporte de auth de registry privado (auth de registry privado, `Image.pull` síncrono) = 10. Esta gema es chica; el backfill completo era factible y se hizo, y a partir de ahí se acreta por PR.
 - **Frontera con glosario:** términos (Service, Spec, Version.Index, etc.) viven en [`docs/glossary/glossary.md`](../glossary/glossary.md). Esta capa documenta secuencias, no significado.
 - **Frontera con configuración:** `DockerSwarm.configure` es boot, no flujo de negocio. No se diagrama.
 - **No localizable / fuera de alcance:**

@@ -9,10 +9,10 @@ description: >-
   cuando el caller necesita orquestar Docker desde Ruby — listar/crear/
   actualizar/eliminar recursos del cluster, leer logs de services/tasks/
   containers, hacer health-check del daemon (System.up/info/df), filtrar por
-  labels, o capturar errores tipados de Docker (Conflict/NotFound/
-  Communication). NO activar para builds de imágenes (no implementado), pull
-  con auth de registry privado (no implementado), o flujos que no son
-  Swarm (Docker Compose, raw containers).
+  labels, pullear imágenes (incl. de registries privados vía X-Registry-Auth),
+  o capturar errores tipados de Docker (Conflict/NotFound/Communication). NO
+  activar para builds de imágenes (no implementado) o flujos que no son Swarm
+  (Docker Compose, raw containers).
 triggers:
   - "DockerSwarm::"
   - "docker-swarm gem"
@@ -55,11 +55,11 @@ Defaults son razonables: en local sin TLS, no necesitás bloque `configure`.
 
 | Modelo | Class methods | Instance methods | Notas |
 |---|---|---|---|
-| `Service` | `all(filters)`, `find(id)`, `where(filters)`, `create(attrs)` | `update(attrs)`, `restart`, `destroy`, `logs(query)`, `reload`, `persisted?`, `id` | CRUD completo + force-recreate de tasks |
+| `Service` | `all(filters)`, `find(id)`, `where(filters)`, `create(attrs)` | `update(attrs)`, `restart`, `destroy`, `logs(query)`, `reload`, `persisted?`, `id` | CRUD completo + force-recreate de tasks; `create`/`update` aceptan `registry_auth:` (+ `update`: `registry_auth_from:`) para auth de registry privado |
 | `Node` | `all(filters)`, `find(id)`, `where(filters)` | `update(attrs)`, `destroy` | No `create` (los nodos se unen fuera de la gema) |
 | `Task` | `all(filters)`, `find(id)`, `where(filters)` | `logs(query)`, `reload` | Read-only (generados por orquestador) |
 | `Container` | `all(filters)`, `find(id)`, `where(filters)` | `start`, `stop`, `destroy`, `logs(query)` | **No `create`** (gap conocido, fuera F1) |
-| `Image` | `all(filters)`, `find(id)`, `create(attrs)` | `destroy` | `create` = pull. **No soporta `X-Registry-Auth`** (registries privados con auth no funcionan) |
+| `Image` | `all(filters)`, `find(id)`, `pull(image_reference, registry_auth:)` | `destroy` | **No `create`** (retirado; `Image` ya no es Creatable). `pull` = pull explícito síncrono → `{status, image_ref, digest?}`; **soporta `X-Registry-Auth`** para registries privados |
 | `Network` | `all(filters)`, `find(id)`, `create(attrs)` | `update(attrs)`, `destroy` | CRUD completo |
 | `Volume` | `all(filters)`, `find(id)`, `create(attrs)` | `destroy` | No `update` (Docker no lo soporta). Respuesta wrapped vía `root_key = "Volumes"` |
 | `Config` | `all(filters)`, `find(id)`, `create(attrs)` | `destroy` | No `update` — recrear |
@@ -131,7 +131,8 @@ Todas heredan de `DockerSwarm::Error`. Tres formas de acceso equivalentes: `Dock
 - **`Spec` se mergea con `deep_merge` en updates**, no se reemplaza. Pasale sólo los campos que cambian: `service.update(Mode: {...})`, no `service.update(Spec: {...completo})`.
 - **`assign_attributes` muta antes de validar.** Si `update` falla por `valid?` o por el API, la instancia local quedó mutada. Hacé `reload` si necesitás estado limpio.
 - **`Container.create` no existe** en la gema (gap intencional F1). Si necesitás crear containers standalone, usá `DockerSwarm.request(method: :post, path: "containers/create", ...)` directo.
-- **Pull con registry privado no soportado.** `Image.create` no inyecta header `X-Registry-Auth`. Para registries privados, fallback a `DockerSwarm.request` con headers manuales.
+- **`Image.create` retirado (breaking).** Ya no existe (`Image` dejó de ser Creatable; el `create` estaba roto y sin consumidores). Usá `Image.pull(image_reference, registry_auth:)`.
+- **Auth de registry privado soportado** vía credencial opaca base64url en `registry_auth:` — `Image.pull(ref, registry_auth:)`, `Service.create(..., registry_auth:)` y `Service#update(..., registry_auth:` / `registry_auth_from:)`. Viaja por header `X-Registry-Auth` (o query `registryAuthFrom`: `spec`\|`previous-spec`, excluyentes); la gema no la mintea ni decodifica. Ver flujos 3.9/3.10 de `docs/behavior/behavior.md`.
 - **`destroy` es graceful con 404** (retorna `nil`), no con 409. Si el recurso está en uso, `Conflict` se propaga.
 - **Logs sensibles enmascarados** automáticamente: keys matching `password|pass|passwd|secret|token|api_key|auth|\bdata\b` → `[FILTERED]`. `\bdata\b` evita filtrar `metadata`/`database`.
 

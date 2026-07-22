@@ -126,7 +126,7 @@ RSpec.describe DockerSwarm::Service do
     end
   end
 
-  describe "registry auth (PB-2131)" do
+  describe "registry auth (#19)" do
     describe "en create" do
       before do
         allow(DockerSwarm::Api).to receive(:request)
