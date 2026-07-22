@@ -66,7 +66,7 @@ RSpec.describe "Shared CRUD Models" do
     it_behaves_like "a crud resource", described_class, "volume", { Name: "my-volume", Driver: "local" }
   end
 
-  describe DockerSwarm::Image do
-    it_behaves_like "a crud resource", described_class, "image", { RepoTags: [ "nginx:latest" ] }
-  end
+  # Image NO es un recurso CRUD genérico: su "create" es un pull (stream de progreso),
+  # cubierto por su contrato propio en models/image_spec.rb. Acá solo quedan los recursos
+  # que sí usan el lifecycle Creatable genérico.
 end

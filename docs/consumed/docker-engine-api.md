@@ -1,6 +1,6 @@
 # Dependencias consumidas — docker-swarm
 
-> meta: artefacto · RFC-018 · generado arch-structure + enriquecido arch-enrich · anclado a `15bcd21` · cobertura: superficie del Docker Engine API consumida por la gema (`api.rb` ENDPOINTS + `connection.rb`); §c/§e enriquecidas 1/1
+> meta: artefacto · RFC-018 · generado arch-structure + enriquecido arch-enrich · anclado a `29856f1` · cobertura: superficie del Docker Engine API consumida por la gema (`api.rb` ENDPOINTS + `connection.rb`); §c/§e enriquecidas 1/1
 
 ## 1. Resumen
 
@@ -40,8 +40,8 @@ Subset que la gema invoca, derivado de `Api::ENDPOINTS` (`api.rb:5-72`). `destin
 | tasks | index / show | `GET tasks`, `GET tasks/%<id>s` | `?filters=` / array \| Hash |
 | tasks | logs | `GET tasks/%<id>s/logs` | `?stdout/stderr/...` / stream raw |
 | services | index / show | `GET services`, `GET services/%<id>s` | `?filters=` / array \| Hash |
-| services | create | `POST services/create` | payload (Spec aplanado) / `{ID}` |
-| services | update | `POST services/%<id>s/update` | `?version=` + payload / — |
+| services | create | `POST services/create` | payload (Spec aplanado) + header `X-Registry-Auth` (opcional, registry privado) / `{ID}` |
+| services | update | `POST services/%<id>s/update` | `?version=` (+ `?registryAuthFrom=` opcional: `spec`\|`previous-spec`) + payload + header `X-Registry-Auth` (opcional; excluyente con `registryAuthFrom`) / — |
 | services | destroy | `DELETE services/%<id>s` | — / — |
 | services | logs | `GET services/%<id>s/logs` | `?stdout/stderr/...` / stream raw |
 | configs | index / show / create / destroy | `GET configs`, `GET configs/%<id>s`, `POST configs/create`, `DELETE configs/%<id>s` | payload en create / `{ID}` |
@@ -56,7 +56,7 @@ Subset que la gema invoca, derivado de `Api::ENDPOINTS` (`api.rb:5-72`). `destin
 | containers | logs | `GET containers/%<id>s/logs` | `?stdout/stderr/...` / stream raw |
 | images | index | `GET images/json` | — / array |
 | images | show | `GET images/%<id>s/json` | — / Hash |
-| images | create | `POST images/create?fromImage=%<id>s` | — (pull; **sin** `X-Registry-Auth`) / stream |
+| images | pull | `POST images/create?fromImage=<ref>` | header `X-Registry-Auth` (opcional, registry privado) / stream NDJSON de progreso |
 | images | destroy | `DELETE images/%<id>s` | — / — |
 
 Serialización: request body no-String → JSON (`Content-Type: application/json`) vía `Middleware::RequestEncoder`; response `application/json` → `HashWithIndifferentAccess` recursivo vía `Middleware::ResponseJSONParser`.
@@ -111,6 +111,6 @@ El daemon responde con status HTTP; `Middleware::ErrorHandler` los mapea a la je
 ## 4. Cobertura y fronteras
 
 - **Regla de dependencia directa:** solo se documenta lo que la gema invoca directo contra el daemon. Lo que Docker orqueste por debajo (scheduling de tasks en nodos, overlay networks) es concern del daemon, no de la gema.
-- **Subset, no la API completa:** `Api::ENDPOINTS` cubre el subset que la gema expone; el Docker Engine API tiene endpoints (build, exec, plugins, registry-auth) que la gema **no** consume → fuera de alcance.
-- **Auth de registry privado:** `images/create` no inyecta `X-Registry-Auth` → pull de registries privados con auth no funciona vía la gema (usar `DockerSwarm.request` con headers manuales). Limitación conocida, ver `skill/SKILL.md`.
+- **Subset, no la API completa:** `Api::ENDPOINTS` cubre el subset que la gema expone; el Docker Engine API tiene endpoints (build, exec, plugins, `POST /auth`) que la gema **no** consume → fuera de alcance. Nota: la gema **sí** manda el header `X-Registry-Auth` (credencial opaca por-request); eso es distinto del endpoint `POST /auth` (login contra un registry), que sigue sin consumirse.
+- **Auth de registry privado:** soportado como credencial opaca por-request — `Service.create`/`#update` (header `X-Registry-Auth`; `#update` además `registryAuthFrom` para reusar la del spec) e `Image.pull` (header `X-Registry-Auth`). La gema no mintea ni valida la credencial: la recibe base64url del caller y la pasa tal cual (`RegistryAuth` traduce a header/query). TLS/TCP para alcanzar el daemon sigue fuera de alcance (ver abajo).
 - **TLS/TCP:** el cliente no gestiona certificados; un endpoint TCP con TLS mutuo queda fuera de alcance (resultará en `Unauthorized`/`Communication`).

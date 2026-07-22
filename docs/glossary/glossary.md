@@ -1,6 +1,6 @@
 # Glosario — docker-swarm
 
-> meta: artefacto · RFC-009 · generado dev-enrich · anclado a `a4e3129` · cobertura: completo inicial (primitivas Docker + arquitectura interna); no se acrecienta sin tocar el flujo/concepto
+> meta: artefacto · RFC-009 · generado dev-enrich · anclado a `8f2e1f7` · cobertura: completo inicial (primitivas Docker + arquitectura interna); no se acrecienta sin tocar el flujo/concepto
 
 ## 1. Resumen
 
@@ -30,7 +30,7 @@ Container Docker standalone (no Swarm). La gema expone start/stop/destroy/logs s
 
 ## Image
 
-Imagen Docker (registry o local). La gema cubre listar, pull (`create`) y destroy. Build local no cubierto (no caso de uso de orquestación).
+Imagen Docker (registry o local). La gema cubre listar, pull (`Image.pull`, explícito y síncrono) y destroy. Build local no cubierto (no caso de uso de orquestación). El `create` genérico se retiró: `Image` ya no es Creatable.
 **Binding:** [`DockerSwarm::Image`](../../lib/docker_swarm/models/image.rb)
 
 ## Network
@@ -76,7 +76,7 @@ Mixin (`ActiveSupport::Concern`) que agrega capacidad CRUD/auxiliar a un modelo.
 
 | Concern | Símbolo | Aplica a |
 |---|---|---|
-| Creatable | [`DockerSwarm::Concerns::Creatable`](../../lib/docker_swarm/concerns/creatable.rb) | Service, Network, Volume, Config, Secret, Image |
+| Creatable | [`DockerSwarm::Concerns::Creatable`](../../lib/docker_swarm/concerns/creatable.rb) | Service, Network, Volume, Config, Secret |
 | Updatable | [`DockerSwarm::Concerns::Updatable`](../../lib/docker_swarm/concerns/updatable.rb) | Service, Node, Network |
 | Deletable | [`DockerSwarm::Concerns::Deletable`](../../lib/docker_swarm/concerns/deletable.rb) | Service, Node, Container, Network, Volume, Config, Secret, Image |
 | Loggable | [`DockerSwarm::Concerns::Loggable`](../../lib/docker_swarm/concerns/loggable.rb) | Service, Task, Container |

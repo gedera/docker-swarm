@@ -102,14 +102,14 @@ module DockerSwarm
     end
 
     def client
-      debug_enabled = logger&.level == Logger::DEBUG
-
+      # NO habilitamos el debug de Excon ni le pasamos el logger. El instrumentor
+      # de Excon redacta solo Authorization/Proxy-Authorization, NUNCA headers de
+      # autenticación custom (p. ej. X-Registry-Auth) → filtraría esa credencial.
+      # Nuestro #log_event ya loguea request/response con redacción recursiva
+      # (LogHelper.sanitize). Para wire-debug explícito y consciente del riesgo queda
+      # EXCON_DEBUG (mecanismo nativo de Excon, off por defecto).
       options = {
         middlewares: common_middlewares,
-        logger: logger,
-        debug_request: debug_enabled,
-        debug_response: debug_enabled,
-        # Si debug_enabled es true, Excon usará su lógica interna de debug con el logger proporcionado
         retry_limit: 0
       }
 

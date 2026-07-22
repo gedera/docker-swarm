@@ -66,19 +66,23 @@ module DockerSwarm
       images: {
         index: { method: :get, path: "images/json" },
         show: { method: :get, path: "images/%<id>s/json" },
-        create: { method: :post, path: "images/create?fromImage=%<id>s" },
+        pull: { method: :post, path: "images/create" },
         destroy: { method: :delete, path: "images/%<id>s" }
       }
     }.freeze
 
-    def self.request(action:, arguments: {}, query_params: {}, payload: nil)
+    def self.request(action:, arguments: {}, query_params: {}, payload: nil, headers: {})
       path = format(action[:path], arguments)
-      DockerSwarm.request(
+      options = {
         method: action[:method],
         path: path,
         query: query_params,
         body: payload
-      )
+      }
+      # Solo forwardeamos headers cuando hay: sin ellos, la request queda
+      # idéntica a la actual (no pisamos los headers por defecto de Excon).
+      options[:headers] = headers if headers && !headers.empty?
+      DockerSwarm.request(**options)
     end
   end
 end
