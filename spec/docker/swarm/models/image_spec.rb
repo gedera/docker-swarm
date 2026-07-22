@@ -13,8 +13,8 @@ require "spec_helper"
 #
 # Se mockea `DockerSwarm.request` (la capa DEBAJO de `Api.request`) a propósito: así la
 # construcción real de path/query se ejercita (a diferencia del shared spec que mockea
-# `Api.request` y esconde el bug). Al implementar `.pull`, quitar el `skip:` del describe.
-RSpec.describe DockerSwarm::Image, skip: "Image.pull aún no implementado (contrato objetivo, red-for-future)" do
+# `Api.request` y esconde el bug).
+RSpec.describe DockerSwarm::Image do
   let(:image_ref) { "registry.example.com/team/app:latest" }
   let(:encoded_auth) { "eyJ1c2VybmFtZSI6Ii4uLiJ9" } # base64url(JSON AuthConfig), valor opaco
 
@@ -108,6 +108,32 @@ RSpec.describe DockerSwarm::Image, skip: "Image.pull aún no implementado (contr
         )
         expect { described_class.pull(image_ref) }.not_to raise_error
       end
+    end
+  end
+
+  # Image conserva el resto del lifecycle (Deletable + listado); solo NO es Creatable.
+  # Esta cobertura migró del shared CRUD spec al retirar Image de los recursos genéricos.
+  describe "resto del lifecycle" do
+    it "NO expone .create (el pull reemplaza al create genérico)" do
+      expect(described_class).not_to respond_to(:create)
+    end
+
+    it "borra una imagen por ID (Deletable)" do
+      expect(DockerSwarm::Api).to receive(:request).with(
+        hash_including(action: described_class.routes[:destroy], arguments: { id: "img-123" })
+      ).and_return(true)
+
+      expect(described_class.destroy("img-123")).to be true
+    end
+
+    it "lista las imágenes (.all)" do
+      expect(DockerSwarm::Api).to receive(:request).with(
+        hash_including(action: described_class.routes[:index])
+      ).and_return([ { "ID" => "img-123" } ])
+
+      images = described_class.all
+      expect(images.first).to be_a(described_class)
+      expect(images.first.ID).to eq("img-123")
     end
   end
 end

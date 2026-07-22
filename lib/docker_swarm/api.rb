@@ -66,7 +66,7 @@ module DockerSwarm
       images: {
         index: { method: :get, path: "images/json" },
         show: { method: :get, path: "images/%<id>s/json" },
-        create: { method: :post, path: "images/create?fromImage=%<id>s" },
+        pull: { method: :post, path: "images/create" },
         destroy: { method: :delete, path: "images/%<id>s" }
       }
     }.freeze
