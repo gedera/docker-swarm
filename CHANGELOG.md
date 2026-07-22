@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Nuevas funcionalidades
 - `Service.create`/`Service#update`: soporte de autenticación de registry privado — `registry_auth` viaja en el header `X-Registry-Auth` y `registry_auth_from` (`spec`|`previous-spec`) en la query `registryAuthFrom` del update; mutuamente excluyentes y validados antes del request. La credencial nunca toca el payload ni el estado del modelo (helper `RegistryAuth`) — @Pslp
-- `Image.pull`: pull explícito síncrono (consume el stream NDJSON hasta EOF, eleva error tipado ante `error`/`errorDetail`, devuelve `{status: :pulled, image_ref:, digest?}` sin `find`; el digest sale del frame `Digest: sha256:…`, verificado contra Docker 29.5.3). **Capacidad sin consumidor activo en el fleet hoy**: el deploy de imágenes privadas se autentica vía `Service.create` (X-Registry-Auth distribuido a los nodos por Swarm), no por pull explícito. `Image.pull` queda disponible para un futuro requerimiento (pre-pull / warm-cache) — @Pslp
+- `Image.pull`: pull explícito síncrono (consume el stream NDJSON hasta EOF, eleva error tipado ante `error`/`errorDetail`, devuelve `{status: :pulled, image_ref:, digest?}` sin `find`; el digest sale del frame `Digest: sha256:…`, verificado contra Docker 29.5.3). **Capacidad sin consumidor activo hoy**: el deploy de imágenes privadas se autentica vía `Service.create` (X-Registry-Auth distribuido a los nodos por Swarm), no por pull explícito. `Image.pull` queda disponible para un futuro requerimiento (pre-pull / warm-cache) — @Pslp
 
 ### Breaking changes
 - `Image` deja de incluir `Creatable`: se retira `Image.create` (roto y sin consumidores) en favor de `Image.pull`. `Image` conserva `Deletable` y el listado — @Pslp

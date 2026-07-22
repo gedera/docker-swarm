@@ -1,6 +1,6 @@
 # Errores — docker-swarm
 
-> meta: artefacto · RFC-020 · generado arch-structure + enriquecido arch-enrich · anclado a `15bcd21` · cobertura: excepciones públicas que la gema emite (`lib/docker_swarm/errors.rb` + `middleware/error_handler.rb`); política §c 15/15 enriquecida
+> meta: artefacto · RFC-020 · generado arch-structure + enriquecido arch-enrich · anclado a `8f2e1f7` · cobertura: excepciones públicas que la gema emite (`lib/docker_swarm/errors.rb` + `middleware/error_handler.rb` + `Image#raise_on_stream_error!`); política §c 16/16 enriquecida
 
 ## 1. Resumen
 
@@ -14,7 +14,7 @@ Todas heredan de `DockerSwarm::Error` (que hereda de `StandardError`). Tres form
 
 | excepción | jerarquía base | qué la levanta |
 |---|---|---|
-| `Error` | `StandardError` | base de todas; también el fallback `HTTP <status>` para status no mapeado |
+| `Error` | `StandardError` | base de todas; el fallback `HTTP <status>` para status no mapeado; **y** el fallo de `Image.pull` cuando el stream de progreso reporta un frame `error`/`errorDetail` (Docker lo emite con **HTTP 200** → no lo agarra `ErrorHandler`; lo eleva `Image#raise_on_stream_error!`, `models/image.rb`) |
 | `Error::BadRequest` | `Error` | status 400 (payload malformado) |
 | `Error::Unauthorized` | `Error` | status 401 (TLS sin credenciales) |
 | `Error::Forbidden` | `Error` | status 403 (permisos insuficientes, ej. swarm op en worker) |
@@ -84,6 +84,7 @@ No aplica un shape propio tipo RFC 7807: la gema es un cliente, no un servidor. 
 | `ServiceUnavailable` (503) | sí | sí | sí (si POST) | daemon reiniciando; retry con backoff |
 | `GatewayTimeout` (504) | sí | sí | sí (si POST) | transitorio; retry en op idempotente |
 | `Communication` (socket) | sí (auto) | no | sí (si POST) | la gema YA reintteta Socket/Timeout en métodos idempotentes (`max_retries`, sin backoff); en POST no reintenta → el caller decide |
+| `Error` (pull stream, HTTP 200) | sí (consumidor) | sí | sí | `Image.pull` la eleva ante un frame `error`/`errorDetail` del stream; propagate. El pull es idempotente → el caller puede reintentar (ej. fallo transitorio de red/registry). Distinguir de un 404 **pre-stream** (imagen/registry inexistente o acceso denegado → no retriable) |
 
 ## 3. Inferencias
 
@@ -99,3 +100,4 @@ No aplica un shape propio tipo RFC 7807: la gema es un cliente, no un servidor. 
 - **Solo errores públicos:** estas excepciones cruzan la frontera de la gema hacia el consumidor. No hay excepciones internas rescatadas-y-tragadas que documentar (salvo `JSON::ParserError` en `ResponseJSONParser`, que se traga y retorna el body crudo — interno, no contrato).
 - **Frontera con consumed (RFC-018):** este catálogo = lo que la gema **emite**. El mapeo "error del proveedor Docker → excepción nuestra" lo referencia [`docs/consumed/docker-engine-api.md`](../consumed/docker-engine-api.md) §d, que apunta acá.
 - **Política §c:** enriquecida (recomendación al consumidor); el matiz por-status lo confirma el humano contra el comportamiento real del daemon (ver §3).
+- **Validación de input del caller (`ArgumentError`, stdlib):** `RegistryAuth.resolve`/`validate!` (exclusión mutua `registry_auth`/`registry_auth_from` + enum del `from`) y `Base#assign_attributes` (no-Hash) elevan `ArgumentError` ante input inválido del caller — fail-fast, antes de tocar el daemon. Es contrato público de esas firmas (documentado en [`docs/interface/interface.md`](../interface/interface.md)), **no** parte de la jerarquía `DockerSwarm::Error` → por eso no está en §a/§c.
