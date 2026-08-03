@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Nuevas funcionalidades
+- `Container` pasa a incluir `Concerns::Creatable`: la gema ya puede **crear** containers, no solo operar los existentes. El nombre viaja por **query string** (`POST /containers/create?name=`), que es donde el Engine lo espera — en el body lo descarta en silencio y responde `201`, dejando el container con nombre aleatorio. `Concerns::Creatable` gana `create_query_params` (default `[]`, override por modelo; `Container` declara `%w[name]`) y `query_params_for_docker`; `save` los manda en la URL y los excluye del payload. Implementa ADR-025 cláusula 1 — @gedera
+
+### Breaking changes
+- **`logs` devuelve texto demultiplexado.** Sin TTY el Engine enmarca cada fragmento con 8 bytes de cabecera (tipo de stream · relleno · tamaño big-endian); el nuevo `Middleware::LogStreamDemuxer` los saca, así que `Loggable#logs` entrega texto limpio en `Container`, `Service` y `Task`. **Cambia el valor de retorno** para cualquier consumidor que hoy reciba el body crudo. Un stream sin framing (TTY) pasa intacto. Implementa ADR-025 cláusula 3 — @gedera
+  - El dispatch **no** se decide solo por `Content-Type`: `application/vnd.docker.multiplexed-stream` existe desde la **API v1.42**, y antes un stream multiplexado viajaba igual como `application/vnd.docker.raw-stream`. Como la gema no fija `?version=`, un Engine que tope en v1.41 devuelve `raw-stream` **con** framing. Ante `raw-stream` el middleware valida la **forma del frame** y solo demultiplexa si la cadena cierra de punta a punta; ante cualquier inconsistencia devuelve el body intacto. Esto se desvía del rationale de `ADR-025:106-107` (no de su Decisión) — corrección pendiente de asentar.
+
 ## [0.8.0] — 2026-07-22
 
 ### Nuevas funcionalidades

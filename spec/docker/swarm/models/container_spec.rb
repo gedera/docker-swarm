@@ -6,6 +6,51 @@ RSpec.describe DockerSwarm::Container do
   let(:valid_attributes) { { "ID" => "container-123", "Names" => [ "/my-container" ] } }
   let(:container) { described_class.new(valid_attributes) }
 
+  describe ".create" do
+    let(:created) { { "Id" => "container-123", "Warnings" => [] } }
+
+    it "manda el nombre por query string y lo saca del body" do
+      expect(DockerSwarm::Api).to receive(:request).with(
+        hash_including(
+          action: described_class.routes[:create],
+          query_params: { name: "acs-seed-helper" }
+        )
+      ) do |args|
+        expect(args[:payload]).not_to have_key("name")
+        expect(args[:payload]).to include("Image" => "mongo:4.4")
+        created
+      end
+      expect(DockerSwarm::Api).to receive(:request).with(
+        hash_including(action: described_class.routes[:show])
+      ).and_return(created)
+
+      container = described_class.create(name: "acs-seed-helper", Image: "mongo:4.4")
+
+      expect(container.ID).to eq("container-123")
+    end
+
+    it "no manda query params si no hay nombre" do
+      expect(DockerSwarm::Api).to receive(:request).with(
+        hash_including(action: described_class.routes[:create], query_params: {})
+      ).and_return(created)
+      expect(DockerSwarm::Api).to receive(:request).with(
+        hash_including(action: described_class.routes[:show])
+      ).and_return(created)
+
+      described_class.create(Image: "mongo:4.4")
+    end
+  end
+
+  describe ".create_query_params" do
+    it "declara name" do
+      expect(described_class.create_query_params).to eq(%w[name])
+    end
+
+    it "no lo declara en los modelos que no lo necesitan" do
+      expect(DockerSwarm::Volume.create_query_params).to be_empty
+    end
+  end
+
   describe "#start" do
     it "calls the start endpoint" do
       expect(DockerSwarm::Api).to receive(:request).with(

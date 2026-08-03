@@ -96,6 +96,7 @@ module DockerSwarm
       Excon.defaults[:middlewares] + [
         Excon::Middleware::RedirectFollower,
         Middleware::RequestEncoder,
+        Middleware::LogStreamDemuxer,
         Middleware::ResponseJSONParser,
         Middleware::ErrorHandler
       ]

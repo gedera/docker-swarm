@@ -1,6 +1,6 @@
 # Test — docker-swarm
 
-> meta: artefacto · RFC-013 · generado arch-structure + enriquecido arch-enrich · anclado a `8f2e1f7` · cobertura: estructura de la suite (`spec/`, `.github/workflows/main.yml`); §e enriquecida, §f enriquecida, §g `unknown` (sin incidentes registrados), §h enriquecida
+> meta: artefacto · RFC-013 · generado arch-structure + enriquecido arch-enrich · anclado a `v0.9.0` · cobertura: estructura de la suite (`spec/`, `.github/workflows/main.yml`); §e enriquecida, §f enriquecida, §g `unknown` (sin incidentes registrados), §h enriquecida
 
 ## 1. Resumen
 
@@ -15,7 +15,7 @@ Framework: **RSpec** (`~> 3.0`). `verify_partial_doubles = true` (mocks estricto
 | subdirectorio | propósito | nivel | helper |
 |---|---|---|---|
 | `spec/docker/swarm/*_spec.rb` | api, configuration, connection, log_helper, registry_auth | unit | `spec_helper` |
-| `spec/docker/swarm/middleware/*_spec.rb` | error_handler, request_encoder, response_json_parser | unit | `spec_helper` |
+| `spec/docker/swarm/middleware/*_spec.rb` | error_handler, log_stream_demuxer, request_encoder, response_json_parser | unit | `spec_helper` |
 | `spec/docker/swarm/models/*_spec.rb` | base, container, image, network, node, service, task + `shared_crud_spec` | unit | `spec_helper` |
 | `spec/integration/*_spec.rb` | containers, infra, security, services, system | integration | `integration_helper` |
 
@@ -54,7 +54,7 @@ Ninguna. No hay `SimpleCov`/`.simplecov` ni umbral declarado en el repo (verific
 - CRUD genérico de `config`, `secret`, `volume`: vía `shared_crud_spec` (`it_behaves_like "a crud resource"`) — no tienen spec dedicado pero **sí** están cubiertos (create/find/destroy). `image` salió del CRUD genérico (su `create` era un pull) → tiene spec propio (abajo).
 - `image`: `image_spec` (dedicado) — `Image.pull` (stream NDJSON, extracción de digest del frame `Digest:`, error tipado ante `error`/`errorDetail`, forma polimórfica del body) + `Deletable` y listado.
 - Auth de registry privado: `registry_auth_spec` (helper `RegistryAuth`: exclusión mutua `registry_auth`/`registry_auth_from`, enum del `from`, traducción a header/query) + bloque registry-auth en `service_spec` (create/update, no-exposición de la credencial en logs).
-- Infra de transporte: `api_spec`, `connection_spec`, `configuration_spec`, `log_helper_spec`, los 3 middleware specs.
+- Infra de transporte: `api_spec`, `connection_spec`, `configuration_spec`, `log_helper_spec`, los 4 middleware specs.
 - `swarm`, `system` (singletons): `swarm_spec`, `system_spec`.
 
 **Cubierto (integration, daemon real):** lifecycle de containers, services, infra (networks/volumes), system (info/version/up/df), security (config/secret create+find+destroy).
