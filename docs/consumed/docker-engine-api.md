@@ -1,6 +1,6 @@
 # Dependencias consumidas — docker-swarm
 
-> meta: artefacto · RFC-018 · generado arch-structure + enriquecido arch-enrich · anclado a `2513f98` · cobertura: superficie del Docker Engine API consumida por la gema (`api.rb` ENDPOINTS + `connection.rb`); §c/§e enriquecidas 1/1
+> meta: artefacto · RFC-018 · generado arch-structure + enriquecido arch-enrich · anclado a `v0.9.0` · cobertura: superficie del Docker Engine API consumida por la gema (`api.rb` ENDPOINTS + `connection.rb`); §c/§e enriquecidas 1/1
 
 ## 1. Resumen
 
@@ -19,7 +19,7 @@ La gema consume **una** dependencia externa: el **Docker Engine API** (HTTP REST
 | transporte | HTTP/REST sobre Unix socket (`unix:///var/run/docker.sock`, default) o TCP (`http://host:2375`) |
 | cliente nuestro | `DockerSwarm::Connection` (Excon) + `DockerSwarm::Api` (`api.rb`) |
 | auth | ninguna por default (socket local). TCP/TLS → fuera de alcance del cliente (no inyecta credenciales; 401 si el daemon las exige) |
-| versión de API | v1.41 (referencia en los `@see` de los modelos; no se negocia explícitamente). **La gema no fija `?version=`** → el daemon sirve su versión **máxima**, que en el parque va de v1.41 (Engine 20.10) a v1.54 (Engine 29.4). Consecuencia en los logs: ver §b |
+| versión de API | v1.41 (referencia en los `@see` de los modelos; no se negocia explícitamente). **La gema no fija `?version=`** → el daemon sirve su versión **máxima**, así que la versión efectiva la decide cada host. Piso relevante: un Engine 20.10 topa en **v1.41**. Techo del parque: `unknown` (no derivable de este repo). Consecuencia en los logs: ver §b |
 | ancla | doc oficial: <https://docs.docker.com/engine/api/v1.41/> |
 
 #### b. Operaciones consumidas

@@ -1,6 +1,6 @@
 # Test — docker-swarm
 
-> meta: artefacto · RFC-013 · generado arch-structure + enriquecido arch-enrich · anclado a `2513f98` · cobertura: estructura de la suite (`spec/`, `.github/workflows/main.yml`); §e enriquecida, §f enriquecida, §g `unknown` (sin incidentes registrados), §h enriquecida
+> meta: artefacto · RFC-013 · generado arch-structure + enriquecido arch-enrich · anclado a `v0.9.0` · cobertura: estructura de la suite (`spec/`, `.github/workflows/main.yml`); §e enriquecida, §f enriquecida, §g `unknown` (sin incidentes registrados), §h enriquecida
 
 ## 1. Resumen
 

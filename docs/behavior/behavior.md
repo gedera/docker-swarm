@@ -1,6 +1,6 @@
 # Comportamiento — docker-swarm
 
-> meta: artefacto · RFC-007 · generado dev-enrich · anclado a `2513f98` · cobertura: 11 flujos load-bearing (8 backfill inicial + 3 nuevos: auth de registry privado, `Image.pull` síncrono, `Container.create`)
+> meta: artefacto · RFC-007 · generado dev-enrich · anclado a `v0.9.0` · cobertura: 11 flujos load-bearing (8 backfill inicial + 3 nuevos: auth de registry privado, `Image.pull` síncrono, `Container.create`)
 
 ## 1. Resumen
 
@@ -240,8 +240,10 @@ sequenceDiagram
 - El body no se parsea como JSON (`ResponseJSONParser` lo respeta porque el Content-Type no es `application/json`).
 - **El demux vive en un middleware, no en `Loggable`:** `Connection#request` devuelve `response.body` y descarta los headers, así que aguas abajo ya no hay `Content-Type` con el que decidir (ADR-025 cláusula 3).
 - **`raw-stream` no implica TTY.** Ese `Content-Type` era el único que existía antes de la API v1.42, y la gema no fija `?version=` → un Engine 20.10 devuelve `raw-stream` con framing. El middleware decide por la forma del frame, no por el header (detalle y cita del changelog en [`docs/consumed/docker-engine-api.md`](../consumed/docker-engine-api.md) §b).
+- **Desviación de ADR-025, acotada.** La **Decisión** normativa (`ADR-025:130-131` — *"un middleware que decide por `Content-Type`"*) **se cumple**: el middleware corta si el header falta o no es uno de los dos. Lo que la implementación contradice es el **rationale de §Alternativas** (`ADR-025:106-107`), que da por sentado que `raw-stream` implica TTY. Ese dato de apoyo es falso para Engines que topan en la API v1.41. Asentar la corrección en el reino queda **pendiente**.
 - **El demux limpia los frames, no separa señal de ruido.** `stdout` y `stderr` siguen intercalados en un solo String: quien necesite un dato puntual tiene que delimitarlo en origen.
-- `follow: 1` mantiene la conexión abierta — el caller debe manejar el stream/timeout. **El demux asume el body completo**; un frame partido entre dos chunks de lectura no está cubierto (limitación registrada en ADR-025).
+- **Un frame partido entre chunks no se reensambla:** el demux es todo-o-nada, así que devuelve el body **intacto** en vez de texto a medias. El comportamiento está definido y cubierto por spec — los cuatro casos que pide `ADR-025:196-198` (cadena de frames, varios en un chunk, tamaño/cola truncados, TTY sin framing) están en `spec/docker/swarm/middleware/log_stream_demuxer_spec.rb`.
+- `follow: 1` mantiene la conexión abierta — el caller debe manejar el stream/timeout. `[inferred]` Con `follow` el body no llega completo, así que el demux no aplica por diseño; no está ejercitado por spec ni contemplado en ADR-025 — es extrapolación de esta capa, no una limitación declarada por la ADR.
 
 ### 3.9 Auth de registry privado (`X-Registry-Auth` / `registryAuthFrom`)
 
@@ -332,5 +334,5 @@ sequenceDiagram
 - **Frontera con configuración:** `DockerSwarm.configure` es boot, no flujo de negocio. No se diagrama.
 - **No localizable / fuera de alcance:**
   - Lógica interna de Excon (retry timing, socket pool) — vive en Excon, no se inventa diagrama.
-  - Flujo de auth registry para `Image.create` — la gema **no implementa** `X-Registry-Auth` (gap, no flujo a documentar).
+  - Nada pendiente por este motivo. (Hasta el 2026-08-03 esta línea decía que la gema no implementaba `X-Registry-Auth` y citaba `Image.create`; las dos cosas quedaron obsoletas — la auth de registry está documentada en §3.9 e `Image.create` fue retirado.)
 - **Cadencia incremental a partir de acá:** sólo se diagrama un flujo cuando un PR lo toca o agrega. No barrido retroactivo de legacy.

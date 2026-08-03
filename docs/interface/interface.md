@@ -1,6 +1,6 @@
 # Interfaz — docker-swarm
 
-> meta: artefacto · RFC-004 · generado arch-structure · anclado a `2513f98` · cobertura: API Ruby pública de la gema (`lib/docker_swarm/**`); símbolos internos marcados en §4
+> meta: artefacto · RFC-004 · generado arch-structure · anclado a `v0.9.0` · cobertura: API Ruby pública de la gema (`lib/docker_swarm/**`); símbolos internos marcados en §4
 
 ## 1. Resumen
 

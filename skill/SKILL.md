@@ -134,7 +134,7 @@ Todas heredan de `DockerSwarm::Error`. Tres formas de acceso equivalentes: `Dock
 - **`Spec` se mergea con `deep_merge` en updates**, no se reemplaza. Pasale sólo los campos que cambian: `service.update(Mode: {...})`, no `service.update(Spec: {...completo})`.
 - **`assign_attributes` muta antes de validar.** Si `update` falla por `valid?` o por el API, la instancia local quedó mutada. Hacé `reload` si necesitás estado limpio.
 - **`Container.create` manda el nombre por query string.** Docker **descarta en silencio** un `name:` en el body y responde `201`: el container nace con nombre aleatorio y un reintento duplica en vez de adoptar. La gema lo resuelve sola vía `Container.create_query_params == %w[name]` — pero si armás el request por afuera (`DockerSwarm.request`), el `?name=` es tuyo. Ver ADR-025 cláusula 1 y §3.11 de `docs/behavior/behavior.md`.
-- **`logs` devuelve texto ya demultiplexado.** Sin TTY el Engine enmarca cada fragmento con 8 bytes de cabecera; `Middleware::LogStreamDemuxer` los saca en `Container`, `Service` y `Task`. Dos consecuencias: **`stdout` y `stderr` vienen intercalados** en un solo String (si necesitás un dato puntual, delimitalo en origen desde el `Cmd`), y **el demux no cubre `follow: 1`** (asume el body completo; un frame partido entre chunks queda fuera).
+- **`logs` devuelve texto ya demultiplexado.** Sin TTY el Engine enmarca cada fragmento con 8 bytes de cabecera; `Middleware::LogStreamDemuxer` los saca en `Container`, `Service` y `Task`. Dos consecuencias: **`stdout` y `stderr` vienen intercalados** en un solo String (si necesitás un dato puntual, delimitalo en origen desde el `Cmd`), y **un frame partido entre chunks no se reensambla** — el demux es todo-o-nada, así que ante cualquier inconsistencia te devuelve el body intacto en vez de texto a medias. Con `follow: 1` el body no llega completo, así que no esperes demux ahí.
 - **`Image.create` retirado (breaking).** Ya no existe (`Image` dejó de ser Creatable; el `create` estaba roto y sin consumidores). Usá `Image.pull(image_reference, registry_auth:)`.
 - **Auth de registry privado soportado** vía credencial opaca base64url en `registry_auth:` — `Image.pull(ref, registry_auth:)`, `Service.create(..., registry_auth:)` y `Service#update(..., registry_auth:` / `registry_auth_from:)`. Viaja por header `X-Registry-Auth` (o query `registryAuthFrom`: `spec`\|`previous-spec`, excluyentes); la gema no la mintea ni decodifica. Ver flujos 3.9/3.10 de `docs/behavior/behavior.md`.
 - **`destroy` es graceful con 404** (retorna `nil`), no con 409. Si el recurso está en uso, `Conflict` se propaga.
@@ -177,8 +177,10 @@ Logs salen en formato KV (`component=docker_swarm.connection event=request_succe
 - [`docs/config/configuracion.md`](docs/config/configuracion.md) — inventario de configuración runtime (7 opciones del bloque `configure`, sin env vars, ninguna secreta). El bloque de arriba es el resumen; shape/defaults/consumidores en el detalle.
 - [`docs/topology/topology.md`](docs/topology/topology.md) — dependencias runtime (3) + grafo de contexto.
 - [`docs/test/testing.md`](docs/test/testing.md) — estructura de la suite RSpec (unit + integration) y comandos de corrida.
+- [`docs/release/release.md`](docs/release/release.md) — canal de publicación (tag `v*` → RubyGems) + deploy/rollback/ambientes.
 - `docs/data/` — `n/a` (gema sin DB).
 - `docs/api/` (operaciones), `docs/events/` — `n/a` (la gema no expone superficie HTTP/CLI/eventos propia; su superficie pública es la interfaz Ruby).
+- `docs/security/`, `docs/multi-tenancy/`, `docs/data-lifecycle/` — `n/a` (sin authn/authz propios —la frontera auth-hacia-Docker está en `docs/consumed` §a—; gema stateless sin scope de tenant; sin persistencia/PII/retención).
 
 ## Versionado del contrato
 

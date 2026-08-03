@@ -1,6 +1,6 @@
 # Glosario — docker-swarm
 
-> meta: artefacto · RFC-009 · generado dev-enrich · anclado a `8f2e1f7` · cobertura: completo inicial (primitivas Docker + arquitectura interna); no se acrecienta sin tocar el flujo/concepto
+> meta: artefacto · RFC-009 · generado dev-enrich · anclado a `v0.9.0` · cobertura: completo inicial (primitivas Docker + arquitectura interna); no se acrecienta sin tocar el flujo/concepto
 
 ## 1. Resumen
 
@@ -126,7 +126,6 @@ Transformación interna que prepara un modelo para enviarlo al API: descarta atr
 
 | Término | Inferencia | Confidence | Verificar |
 |---|---|---|---|
-| Container | "creación intencionalmente fuera de scope F1" | ~~inferred~~ → **resuelto** | Era un gap a cubrir. Lo cerró ADR-025 cláusula 1: `Container` es Creatable, con el nombre por query string |
 | Spec deep_merge | "razón: updates parciales no pierden campos" | declared | confirmado en CLAUDE.md decisión arquitectura |
 | Dynamic Accessor | "Docker evoluciona y agrega campos" | declared | confirmado en CLAUDE.md decisión arquitectura |
 
@@ -138,4 +137,5 @@ Transformación interna que prepara un modelo para enviarlo al API: descarta atr
 - **Fuera de alcance:**
   - Términos técnicos puros sin significado de negocio (ej: `instance_values`, `attr_accessor`) — son detalles de implementación, no contrato.
   - Glossary del Docker Engine API (cómo funciona internamente Swarm, raft, gossip) — vive en docs de Docker, no se duplica acá.
+- **Inferencia resuelta (2026-08-03):** §3 registraba como `inferred` la pregunta de si *"creación intencionalmente fuera de scope F1"* era una decisión de alcance o un gap a cubrir. Quedó resuelta: **era una decisión de alcance** (Swarm-first), y ADR-025 cláusula 1 **amplió el alcance** al aparecer un caso de uso real (el helper container efímero de la migración del ACS). La fila salió de §3 porque ya no es una inferencia pendiente.
 - **Cadencia:** incremental por PR a partir de acá; ausencia ≠ inexistencia (RFC-009).
