@@ -62,5 +62,84 @@ RSpec.describe DockerSwarm::LogHelper do
       described_class.sanitize(original)
       expect(original[:headers]["X-Registry-Auth"]).to eq("cred")
     end
+
+    # El `Env` de un ContainerSpec es un ARRAY DE STRINGS `"CLAVE=VALOR"`: el
+    # nombre del secreto vive DENTRO del elemento, no como clave de hash. Antes
+    # de esto, `Env` no matcheaba SENSITIVE_KEYS, sus elementos caían al `else`
+    # y el valor se logueaba entero en `request_success`.
+    context "con la forma real del body de services/create" do
+      let(:body) do
+        {
+          "Name" => "svc",
+          "TaskTemplate" => {
+            "ContainerSpec" => {
+              "Image" => "busybox:1.37",
+              "Env" => [
+                "SECRET_KEY_BASE=deadbeefcafe123",
+                "DB_PASSWORD=hunter2",
+                "RAILS_LOG_LEVEL=info",
+                "RABBIT_PASS_FILE=/run/secrets/rabbit_password"
+              ]
+            }
+          }
+        }
+      end
+
+      subject(:env) { described_class.sanitize(body)["TaskTemplate"]["ContainerSpec"]["Env"] }
+
+      it "redacta el valor de las claves sensibles conservando el nombre" do
+        expect(env).to include("SECRET_KEY_BASE=[FILTERED]", "DB_PASSWORD=[FILTERED]")
+      end
+
+      it "no deja pasar ningún valor sensible" do
+        expect(env.join(" ")).not_to include("deadbeefcafe123", "hunter2")
+      end
+
+      it "deja intactas las env no sensibles" do
+        expect(env).to include("RAILS_LOG_LEVEL=info")
+      end
+
+      it "no toca el resto del spec" do
+        result = described_class.sanitize(body)
+        expect(result["Name"]).to eq("svc")
+        expect(result["TaskTemplate"]["ContainerSpec"]["Image"]).to eq("busybox:1.37")
+      end
+
+      it "no muta el array original (el spec real que va a Docker queda intacto)" do
+        described_class.sanitize(body)
+        expect(body["TaskTemplate"]["ContainerSpec"]["Env"]).to include("SECRET_KEY_BASE=deadbeefcafe123")
+      end
+    end
+
+    describe "redacción de strings CLAVE=VALOR" do
+      it "no parte en un `=` que pertenece al valor (base64, URLs)" do
+        expect(described_class.sanitize("API_KEY=YWJjPT09")).to eq("API_KEY=[FILTERED]")
+      end
+
+      it "cubre un valor multilínea (una clave PEM por env)" do
+        pem = "SECRET_KEY=-----BEGIN PRIVATE KEY-----\nMIIabc\n-----END PRIVATE KEY-----"
+        expect(described_class.sanitize(pem)).to eq("SECRET_KEY=[FILTERED]")
+      end
+
+      # Documenta un hueco REAL de SENSITIVE_KEYS, no del mecanismo de este fix:
+      # `private_key` no está en la lista, así que un PEM pasado con ese nombre
+      # sigue saliendo en claro. Ampliar la lista se trata aparte, porque cambia
+      # el comportamiento de redacción de todos los consumidores.
+      it "NO cubre claves ausentes de SENSITIVE_KEYS — hueco conocido" do
+        expect(described_class.sanitize("PRIVATE_KEY=abc")).to eq("PRIVATE_KEY=abc")
+      end
+
+      it "deja intacto un string sin forma CLAVE=VALOR" do
+        expect(described_class.sanitize("connection refused")).to eq("connection refused")
+      end
+
+      it "deja intacto un string cuya clave no es sensible" do
+        expect(described_class.sanitize("PATH=/usr/bin")).to eq("PATH=/usr/bin")
+      end
+
+      it "deja intacto un mensaje de error que contiene un `=` pero no una clave sensible" do
+        expect(described_class.sanitize("version=1625722 out of sequence")).to eq("version=1625722 out of sequence")
+      end
+    end
   end
 end

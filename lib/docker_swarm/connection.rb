@@ -105,9 +105,17 @@ module DockerSwarm
       # NO habilitamos el debug de Excon ni le pasamos el logger. El instrumentor
       # de Excon redacta solo Authorization/Proxy-Authorization, NUNCA headers de
       # autenticación custom (p. ej. X-Registry-Auth) → filtraría esa credencial.
-      # Nuestro #log_event ya loguea request/response con redacción recursiva
-      # (LogHelper.sanitize). Para wire-debug explícito y consciente del riesgo queda
-      # EXCON_DEBUG (mecanismo nativo de Excon, off por defecto).
+      #
+      # Nuestro #log_event loguea request/response pasando por
+      # {LogHelper.sanitize}, que cubre DOS formas: la clave de hash sensible
+      # (headers anidados) y el `"CLAVE=VALOR"` dentro de un String (el `Env` de
+      # un ContainerSpec, que es un array de strings). Lo que NO cubre —y hay que
+      # tenerlo presente antes de sumar un logueo nuevo— es un secreto embebido
+      # en texto libre sin la forma `CLAVE=VALOR`: ahí el nombre de la clave no
+      # aparece y no hay por dónde reconocerlo.
+      #
+      # Para wire-debug explícito y consciente del riesgo queda EXCON_DEBUG
+      # (mecanismo nativo de Excon, off por defecto).
       options = {
         middlewares: common_middlewares,
         retry_limit: 0
