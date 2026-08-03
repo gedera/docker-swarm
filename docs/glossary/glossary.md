@@ -25,7 +25,7 @@ Unidad de ejecución de un Service en un Node específico. Read-only: las tasks 
 
 ## Container
 
-Container Docker standalone (no Swarm). La gema expone start/stop/destroy/logs sobre containers existentes. Creación intencionalmente fuera de scope F1 — el caso de uso primario de la gema es Swarm.
+Container Docker standalone (no Swarm). La gema expone create/start/stop/destroy/logs. La creación estuvo fuera de scope en F1 —el caso de uso primario de la gema es Swarm— y entró con ADR-025 cláusula 1: operar datos on-host durante una migración necesita un **helper container efímero** con nombre determinista, que es lo que habilita adoptarlo en un reintento en vez de duplicarlo.
 **Binding:** [`DockerSwarm::Container`](../../lib/docker_swarm/models/container.rb)
 
 ## Image
@@ -126,7 +126,7 @@ Transformación interna que prepara un modelo para enviarlo al API: descarta atr
 
 | Término | Inferencia | Confidence | Verificar |
 |---|---|---|---|
-| Container | "creación intencionalmente fuera de scope F1" | inferred | ¿se quiere documentar como decisión explícita o como gap a cubrir? |
+| Container | "creación intencionalmente fuera de scope F1" | ~~inferred~~ → **resuelto** | Era un gap a cubrir. Lo cerró ADR-025 cláusula 1: `Container` es Creatable, con el nombre por query string |
 | Spec deep_merge | "razón: updates parciales no pierden campos" | declared | confirmado en CLAUDE.md decisión arquitectura |
 | Dynamic Accessor | "Docker evoluciona y agrega campos" | declared | confirmado en CLAUDE.md decisión arquitectura |
 

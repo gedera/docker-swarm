@@ -1,6 +1,6 @@
 # Dependencias consumidas — docker-swarm
 
-> meta: artefacto · RFC-018 · generado arch-structure + enriquecido arch-enrich · anclado a `29856f1` · cobertura: superficie del Docker Engine API consumida por la gema (`api.rb` ENDPOINTS + `connection.rb`); §c/§e enriquecidas 1/1
+> meta: artefacto · RFC-018 · generado arch-structure + enriquecido arch-enrich · anclado a `2513f98` · cobertura: superficie del Docker Engine API consumida por la gema (`api.rb` ENDPOINTS + `connection.rb`); §c/§e enriquecidas 1/1
 
 ## 1. Resumen
 
@@ -19,7 +19,7 @@ La gema consume **una** dependencia externa: el **Docker Engine API** (HTTP REST
 | transporte | HTTP/REST sobre Unix socket (`unix:///var/run/docker.sock`, default) o TCP (`http://host:2375`) |
 | cliente nuestro | `DockerSwarm::Connection` (Excon) + `DockerSwarm::Api` (`api.rb`) |
 | auth | ninguna por default (socket local). TCP/TLS → fuera de alcance del cliente (no inyecta credenciales; 401 si el daemon las exige) |
-| versión de API | v1.41 (referencia en los `@see` de los modelos; no se negocia explícitamente) |
+| versión de API | v1.41 (referencia en los `@see` de los modelos; no se negocia explícitamente). **La gema no fija `?version=`** → el daemon sirve su versión **máxima**, que en el parque va de v1.41 (Engine 20.10) a v1.54 (Engine 29.4). Consecuencia en los logs: ver §b |
 | ancla | doc oficial: <https://docs.docker.com/engine/api/v1.41/> |
 
 #### b. Operaciones consumidas
@@ -38,28 +38,38 @@ Subset que la gema invoca, derivado de `Api::ENDPOINTS` (`api.rb:5-72`). `destin
 | nodes | update | `POST nodes/%<id>s/update` | `?version=` + payload / — |
 | nodes | destroy | `DELETE nodes/%<id>s` | — / — |
 | tasks | index / show | `GET tasks`, `GET tasks/%<id>s` | `?filters=` / array \| Hash |
-| tasks | logs | `GET tasks/%<id>s/logs` | `?stdout/stderr/...` / stream raw |
+| tasks | logs | `GET tasks/%<id>s/logs` | `?stdout/stderr/...` / stream multiplexado (demux en el cliente) |
 | services | index / show | `GET services`, `GET services/%<id>s` | `?filters=` / array \| Hash |
 | services | create | `POST services/create` | payload (Spec aplanado) + header `X-Registry-Auth` (opcional, registry privado) / `{ID}` |
 | services | update | `POST services/%<id>s/update` | `?version=` (+ `?registryAuthFrom=` opcional: `spec`\|`previous-spec`) + payload + header `X-Registry-Auth` (opcional; excluyente con `registryAuthFrom`) / — |
 | services | destroy | `DELETE services/%<id>s` | — / — |
-| services | logs | `GET services/%<id>s/logs` | `?stdout/stderr/...` / stream raw |
+| services | logs | `GET services/%<id>s/logs` | `?stdout/stderr/...` / stream multiplexado (demux en el cliente) |
 | configs | index / show / create / destroy | `GET configs`, `GET configs/%<id>s`, `POST configs/create`, `DELETE configs/%<id>s` | payload en create / `{ID}` |
 | secrets | index / show / create / destroy | `GET secrets`, `GET secrets/%<id>s`, `POST secrets/create`, `DELETE secrets/%<id>s` | payload en create (`Data` filtrado en logs) / `{ID}` |
 | networks | index / show / create / update / destroy | `GET/POST networks...`, `POST networks/%<id>s/update`, `DELETE networks/%<id>s` | payload / `{ID}` |
 | volumes | index / show / create / destroy | `GET volumes`, `GET volumes/%<id>s`, `POST volumes/create`, `DELETE volumes/%<id>s` | payload / respuesta wrapped en `Volumes` |
 | containers | index | `GET containers/json` | `?filters=` / array |
 | containers | show | `GET containers/%<id>s/json` | — / Hash |
-| containers | create | `POST containers/create` | payload / `{Id}` |
+| containers | create | `POST containers/create` | `?name=` (query, NO en el body) + payload / `{Id}` |
 | containers | start / stop | `POST containers/%<id>s/start`, `POST containers/%<id>s/stop` | — / — |
 | containers | destroy | `DELETE containers/%<id>s` | — / — |
-| containers | logs | `GET containers/%<id>s/logs` | `?stdout/stderr/...` / stream raw |
+| containers | logs | `GET containers/%<id>s/logs` | `?stdout/stderr/...` / stream multiplexado (demux en el cliente) |
 | images | index | `GET images/json` | — / array |
 | images | show | `GET images/%<id>s/json` | — / Hash |
 | images | pull | `POST images/create?fromImage=<ref>` | header `X-Registry-Auth` (opcional, registry privado) / stream NDJSON de progreso |
 | images | destroy | `DELETE images/%<id>s` | — / — |
 
 Serialización: request body no-String → JSON (`Content-Type: application/json`) vía `Middleware::RequestEncoder`; response `application/json` → `HashWithIndifferentAccess` recursivo vía `Middleware::ResponseJSONParser`.
+
+**Streams de logs (`containers`/`services`/`tasks` → `logs`).** Sin TTY el Engine multiplexa: 8 bytes de cabecera por frame (1 tipo de stream · 3 de relleno en cero · 4 de tamaño big-endian). `Middleware::LogStreamDemuxer` los saca, así que `Loggable#logs` entrega texto limpio.
+
+El `Content-Type` **no alcanza** para decidir. `application/vnd.docker.multiplexed-stream` existe **desde la API v1.42**; su entrada de changelog dice, textual:
+
+> `GET /containers/{id}/attach`, `GET /exec/{id}/start`, `GET /containers/{id}/logs` `GET /services/{id}/logs` and `GET /tasks/{id}/logs` now set Content-Type header to `application/vnd.docker.multiplexed-stream` when a multiplexed stdout/stderr stream is sent to client, `application/vnd.docker.raw-stream` otherwise.
+
+Antes de v1.42 ese valor no existía y un stream multiplexado viajaba igual como `application/vnd.docker.raw-stream`. Como la gema no fija `?version=`, un Engine 20.10 (tope v1.41) devuelve `raw-stream` **con** framing. Por eso el middleware, ante `raw-stream`, decide por la **forma del frame** —recorre el body entero y solo demultiplexa si la cadena de frames cierra de punta a punta— en vez de confiar en el header. Ante cualquier inconsistencia deja el body intacto.
+
+> Anclaje: <https://docs.docker.com/reference/api/engine/version-history/> (entrada de v1.42).
 
 #### d. Errores del proveedor → excepción nuestra
 

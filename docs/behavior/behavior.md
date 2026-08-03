@@ -1,6 +1,6 @@
 # Comportamiento — docker-swarm
 
-> meta: artefacto · RFC-007 · generado dev-enrich · anclado a `29856f1` · cobertura: 10 flujos load-bearing (8 backfill inicial + 2 nuevos: auth de registry privado, `Image.pull` síncrono)
+> meta: artefacto · RFC-007 · generado dev-enrich · anclado a `2513f98` · cobertura: 11 flujos load-bearing (8 backfill inicial + 3 nuevos: auth de registry privado, `Image.pull` síncrono, `Container.create`)
 
 ## 1. Resumen
 
@@ -8,7 +8,7 @@ Flujos de ejecución load-bearing de `docker-swarm`: cómo se materializan en ru
 
 ## 2. Cobertura declarada
 
-### Documentados (8)
+### Documentados (11)
 
 1. `Service.create` + reload
 2. `Service.update` con `Version.Index`
@@ -20,12 +20,12 @@ Flujos de ejecución load-bearing de `docker-swarm`: cómo se materializan en ru
 8. `Loggable#logs` streaming
 9. Auth de registry privado (`RegistryAuth.resolve` → `X-Registry-Auth` / `registryAuthFrom`)
 10. `Image.pull` síncrono (stream NDJSON → error tipado → resultado explícito)
+11. `Container.create` con nombre por query string (`create_query_params`)
 
 ### No documentados (ausencia ≠ inexistencia, RFC-007)
 
 - Reconexión / reapertura de socket Unix (Excon nativo, fuera de nuestra superficie).
 - Flujo de configuración / boot (`DockerSwarm.configure`) — trivial, sin secuencia de interés.
-- `Container.create` — **no implementado** en F1 (intencional, ver glossary).
 
 ## 3. Flujos
 
@@ -212,26 +212,36 @@ Mismo patrón para `stop`. POST sin body → no se reintenta automáticamente (�
 
 ### 3.8 `Loggable#logs` streaming
 
-Obtención de logs raw para Service/Task/Container.
+Obtención de logs para Service/Task/Container, ya demultiplexados.
 
 ```mermaid
 sequenceDiagram
     actor Caller
     participant Model as Service/Task/Container
     participant Api
+    participant Demux as LogStreamDemuxer
     participant Docker
 
     Caller->>Model: model.logs(stdout: 1, stderr: 1, follow: 0)
     Model->>Api: request(:logs, id:, query: { stdout:, stderr:, follow: })
     Api->>Docker: GET /services/abc/logs?stdout=1&stderr=1
-    Docker-->>Api: 200 raw stream (text/plain)
-    Api-->>Model: raw body
+    Docker-->>Demux: 200 stream + Content-Type
+    alt cadena de frames cierra de punta a punta
+        Demux->>Demux: saca 8 bytes de cabecera por frame, concatena en orden
+    else body sin framing (TTY) o inconsistente
+        Demux->>Demux: deja el body intacto
+    end
+    Demux-->>Api: texto limpio
+    Api-->>Model: body
     Model-->>Caller: String
 ```
 
 **Notas load-bearing:**
-- El body se devuelve sin parseo (no es JSON; `ResponseJSONParser` lo respeta porque Content-Type no es `application/json`).
-- `follow: 1` mantiene la conexión abierta — el caller debe manejar el stream/timeout.
+- El body no se parsea como JSON (`ResponseJSONParser` lo respeta porque el Content-Type no es `application/json`).
+- **El demux vive en un middleware, no en `Loggable`:** `Connection#request` devuelve `response.body` y descarta los headers, así que aguas abajo ya no hay `Content-Type` con el que decidir (ADR-025 cláusula 3).
+- **`raw-stream` no implica TTY.** Ese `Content-Type` era el único que existía antes de la API v1.42, y la gema no fija `?version=` → un Engine 20.10 devuelve `raw-stream` con framing. El middleware decide por la forma del frame, no por el header (detalle y cita del changelog en [`docs/consumed/docker-engine-api.md`](../consumed/docker-engine-api.md) §b).
+- **El demux limpia los frames, no separa señal de ruido.** `stdout` y `stderr` siguen intercalados en un solo String: quien necesite un dato puntual tiene que delimitarlo en origen.
+- `follow: 1` mantiene la conexión abierta — el caller debe manejar el stream/timeout. **El demux asume el body completo**; un frame partido entre dos chunks de lectura no está cubierto (limitación registrada en ADR-025).
 
 ### 3.9 Auth de registry privado (`X-Registry-Auth` / `registryAuthFrom`)
 
@@ -287,9 +297,37 @@ sequenceDiagram
 - El digest sale del frame `Digest: sha256:...` (el stream de pull **no** trae campo `aux` — verificado contra Docker 29.5.3), escaneando desde el final.
 - Es un `POST` → **no** entra en la política de retries (ver flujo 3.5).
 
+### 3.11 `Container.create` con nombre por query string
+
+El Engine toma el nombre del container por query string. En el body lo **descarta en silencio** y responde `201` igual: el container nace con nombre aleatorio, y una lógica de adopción por nombre determinista no lo encuentra → el reintento duplica en vez de adoptar (ADR-025 cláusula 1).
+
+```mermaid
+sequenceDiagram
+    actor Caller
+    participant Container as DockerSwarm::Container
+    participant Api
+    participant Docker
+
+    Caller->>Container: Container.create(name: "acs-seed-helper", Image:, Cmd:)
+    Container->>Container: valid?
+    Container->>Container: query_params_for_docker → { name: "acs-seed-helper" }
+    Container->>Container: payload_for_docker.except("name")
+    Container->>Api: request(:create, query_params:, payload:)
+    Api->>Docker: POST /containers/create?name=acs-seed-helper
+    Docker-->>Api: 201 { Id: "abc" }
+    Api-->>Container: { Id: "abc" }
+    Container->>Container: self.ID = "abc" → reload
+    Container-->>Caller: instancia hidratada
+```
+
+**Notas load-bearing:**
+- El split lo declara el modelo con `.create_query_params` (`%w[name]` en `Container`); el default del concern es `[]`, así que los demás modelos Creatable no cambian de comportamiento.
+- **El atributo se excluye del payload**, no se duplica: mandarlo en los dos lados no da error pero deja el body con una clave que Docker ignora.
+- Hereda el flujo §3.1: `valid?` antes del POST, `reload` después, y **sin retry** por ser `POST` (§3.5). Si el `create` falla por `Communication`, el caller decide — con nombre determinista puede adoptar el existente en el reintento.
+
 ## 4. Cobertura y fronteras
 
-- **Cobertura (RFC-007 backfill on-demand + incremental):** 8 flujos load-bearing en el backfill inicial + 2 agregados con el soporte de auth de registry privado (auth de registry privado, `Image.pull` síncrono) = 10. Esta gema es chica; el backfill completo era factible y se hizo, y a partir de ahí se acreta por PR.
+- **Cobertura (RFC-007 backfill on-demand + incremental):** 8 flujos load-bearing en el backfill inicial + 2 agregados con el soporte de auth de registry privado (auth de registry privado, `Image.pull` síncrono) + 1 con el `create` de containers = 11. Esta gema es chica; el backfill completo era factible y se hizo, y a partir de ahí se acreta por PR.
 - **Frontera con glosario:** términos (Service, Spec, Version.Index, etc.) viven en [`docs/glossary/glossary.md`](../glossary/glossary.md). Esta capa documenta secuencias, no significado.
 - **Frontera con configuración:** `DockerSwarm.configure` es boot, no flujo de negocio. No se diagrama.
 - **No localizable / fuera de alcance:**

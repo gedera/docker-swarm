@@ -1,6 +1,6 @@
 # Interfaz — docker-swarm
 
-> meta: artefacto · RFC-004 · generado arch-structure · anclado a `29856f1` · cobertura: API Ruby pública de la gema (`lib/docker_swarm/**`); símbolos internos marcados en §4
+> meta: artefacto · RFC-004 · generado arch-structure · anclado a `2513f98` · cobertura: API Ruby pública de la gema (`lib/docker_swarm/**`); símbolos internos marcados en §4
 
 ## 1. Resumen
 
@@ -63,11 +63,13 @@ Inventario completo de opciones: [`docs/config/configuracion.md`](../config/conf
 | símbolo | tipo | nota |
 |---|---|---|
 | `Concerns::Creatable.create(attributes = {}, **opts)` | método de clase (mixin) | `new` + `save`; retorna la instancia. `opts` reservado `registry_auth:` (→ header `X-Registry-Auth`); el resto se pliega como atributos |
-| `Concerns::Creatable#save(registry_auth: nil)` | método de instancia | `false` si `!valid?`; `update` si `persisted?`; si no `POST create` + `reload`. `registry_auth` viaja como header, nunca en el payload |
+| `Concerns::Creatable#save(registry_auth: nil)` | método de instancia | `false` si `!valid?`; `update` si `persisted?`; si no `POST create` + `reload`. `registry_auth` viaja como header, nunca en el payload. Los `create_query_params` del modelo viajan por query string y se **excluyen** del payload |
+| `Concerns::Creatable.create_query_params` | método de clase (mixin) | `[]` por default; override por modelo. Atributos que el Engine toma por query string en el `create` y **descarta en silencio** si van en el body |
+| `Concerns::Creatable#query_params_for_docker` | método de instancia | los `create_query_params` seteados en esta instancia, con claves símbolo; `{}` si el modelo no declara ninguno |
 | `Concerns::Updatable#update(new_attributes = {}, **opts)` | método de instancia | extrae `Version.Index`; `false` si `!valid?`; `POST update` con `?version=`. `opts` reservado `registry_auth:` (header) / `registry_auth_from:` (query `registryAuthFrom`, `spec`\|`previous-spec`, excluyente con `registry_auth`); el resto se pliega como atributos |
 | `Concerns::Deletable.destroy(id)` | método de clase (mixin) | `DELETE destroy`; `nil` si `Errors::NotFound` |
 | `Concerns::Deletable#destroy` | método de instancia | delega en `.destroy(self.ID)` |
-| `Concerns::Loggable#logs(query_params = { stdout: 1, stderr: 1 })` | método de instancia | `GET logs`; retorna el stream raw |
+| `Concerns::Loggable#logs(query_params = { stdout: 1, stderr: 1 })` | método de instancia | `GET logs`; retorna **texto ya demultiplexado** (sin los 8 bytes de cabecera por frame) — el demux lo hace `Middleware::LogStreamDemuxer`, el consumidor no ve el framing. Un stream de TTY (sin framing) pasa intacto |
 | `Concerns::Inspectable#inspect` | método de instancia | render legible (ID/Name/Version/Spec) |
 
 ### Modelos (`models/*.rb`)
@@ -77,7 +79,7 @@ Inventario completo de opciones: [`docs/config/configuracion.md`](../config/conf
 | `DockerSwarm::Service` | clase < Base | Creatable, Updatable, Deletable, Loggable; `#restart` (incrementa `TaskTemplate.ForceUpdate`); `create`/`update` aceptan `registry_auth:` (+ `update`: `registry_auth_from:`) para auth de registry privado |
 | `DockerSwarm::Node` | clase < Base | Updatable, Deletable (sin `create`: los nodos se unen fuera de la gema) |
 | `DockerSwarm::Task` | clase < Base | Loggable (read-only; generadas por el orquestador) |
-| `DockerSwarm::Container` | clase < Base | Deletable, Loggable; `#start`, `#stop` (sin `create`: gap intencional) |
+| `DockerSwarm::Container` | clase < Base | Creatable, Deletable, Loggable; `#start`, `#stop`; `.create_query_params == %w[name]` (el Engine toma el nombre por query string — en el body lo descarta en silencio y el container nace con nombre aleatorio). El `create` **no** es gap intencional desde ADR-025 cláusula 1 |
 | `DockerSwarm::Image` | clase < Base | Deletable + `.pull(image_reference, registry_auth: nil)`. **NO** es Creatable (`Image.create` retirado sin alias). `.pull` = pull explícito síncrono: consume el stream NDJSON hasta EOF, eleva `DockerSwarm::Error` ante frame `error`/`errorDetail`, retorna `{ status: :pulled, image_ref:, digest? }` (sin `find` posterior) |
 | `DockerSwarm::Network` | clase < Base | Creatable, Updatable, Deletable |
 | `DockerSwarm::Volume` | clase < Base | Creatable, Deletable; `.root_key = "Volumes"` (respuesta wrapped) |
@@ -99,7 +101,8 @@ Inventario completo de opciones: [`docs/config/configuracion.md`](../config/conf
 | `DockerSwarm::RegistryAuth.resolve(registry_auth:, registry_auth_from:)` | método de módulo | traduce las opciones de auth a `[headers, query_params]` (`X-Registry-Auth` / `registryAuthFrom`); valida exclusión mutua + enum antes de la request. Usado por `Image.pull` / `#save` / `#update`; la credencial nunca toca payload ni estado del modelo |
 | `DockerSwarm::RegistryAuth::{HEADER, QUERY, FROM_VALUES}` | constantes | `"X-Registry-Auth"` · `:registryAuthFrom` · `%w[spec previous-spec]` |
 | `DockerSwarm::Error` + subclases + aliases + `DockerSwarm::Errors` | clases/módulo | jerarquía de errores — detalle en [`docs/errors/errors.md`](../errors/errors.md) |
-| `DockerSwarm::Middleware::{RequestEncoder, ResponseJSONParser, ErrorHandler}` | clases | middlewares Excon; públicos por require pero de uso interno (ver §4) |
+| `DockerSwarm::Middleware::{RequestEncoder, LogStreamDemuxer, ResponseJSONParser, ErrorHandler}` | clases | middlewares Excon; públicos por require pero de uso interno (ver §4) |
+| `DockerSwarm::Middleware::LogStreamDemuxer::{MULTIPLEXED_CONTENT_TYPE, RAW_CONTENT_TYPE, HEADER_SIZE, STREAM_TYPES}` | constantes | `"application/vnd.docker.multiplexed-stream"` · `"application/vnd.docker.raw-stream"` · `8` · `[0, 1, 2]` |
 
 ## 3. Inferencias
 
