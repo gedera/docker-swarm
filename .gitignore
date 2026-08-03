@@ -8,3 +8,5 @@
 # Perfil local + runs de multi-vendor-feedback (paths de máquina)
 /vendors.local.yaml
 /mvf-runs/
+# Gemas construidas por el flujo de release
+*.gem

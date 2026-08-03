@@ -2,14 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [0.9.0] — 2026-08-03
 
 ### Nuevas funcionalidades
 - `Container` pasa a incluir `Concerns::Creatable`: la gema ya puede **crear** containers, no solo operar los existentes. El nombre viaja por **query string** (`POST /containers/create?name=`), que es donde el Engine lo espera — en el body lo descarta en silencio y responde `201`, dejando el container con nombre aleatorio. `Concerns::Creatable` gana `create_query_params` (default `[]`, override por modelo; `Container` declara `%w[name]`) y `query_params_for_docker`; `save` los manda en la URL y los excluye del payload. Implementa ADR-025 cláusula 1 — @gedera
 
 ### Breaking changes
 - **`logs` devuelve texto demultiplexado.** Sin TTY el Engine enmarca cada fragmento con 8 bytes de cabecera (tipo de stream · relleno · tamaño big-endian); el nuevo `Middleware::LogStreamDemuxer` los saca, así que `Loggable#logs` entrega texto limpio en `Container`, `Service` y `Task`. **Cambia el valor de retorno** para cualquier consumidor que hoy reciba el body crudo. Un stream sin framing (TTY) pasa intacto. Implementa ADR-025 cláusula 3 — @gedera
-  - El dispatch **no** se decide solo por `Content-Type`: `application/vnd.docker.multiplexed-stream` existe desde la **API v1.42**, y antes un stream multiplexado viajaba igual como `application/vnd.docker.raw-stream`. Como la gema no fija `?version=`, un Engine que tope en v1.41 devuelve `raw-stream` **con** framing. Ante `raw-stream` el middleware valida la **forma del frame** y solo demultiplexa si la cadena cierra de punta a punta; ante cualquier inconsistencia devuelve el body intacto. Esto se desvía del rationale de `ADR-025:106-107` (no de su Decisión) — corrección pendiente de asentar.
+  - El dispatch **no** se decide solo por `Content-Type`: `application/vnd.docker.multiplexed-stream` existe desde la **API v1.42**, y antes un stream multiplexado viajaba igual como `application/vnd.docker.raw-stream`. Como la gema no fija `?version=`, un Engine que tope en v1.41 devuelve `raw-stream` **con** framing. Ante `raw-stream` el middleware valida la **forma del frame** y solo demultiplexa si la cadena cierra de punta a punta; ante cualquier inconsistencia devuelve el body intacto. Registrado en **ADR-027**, que corrige un dato de apoyo del §Alternativas de ADR-025 **sin** superseder su Decisión.
+
+### Seguridad
+- **`LogHelper.sanitize` redacta los secretos que viajan como `"CLAVE=VALOR"` en `Env`** (#24). Antes redactaba solo por **clave de hash**: un String caía al `else` y pasaba intacto, y el `Env` de un `ContainerSpec` es un **array de strings** `"CLAVE=VALOR"` donde el nombre del secreto vive *dentro* del elemento. Como `"Env"` tampoco matchea `SENSITIVE_KEYS`, el valor de todo secreto pasado por variable de entorno **se logueaba entero en `request_success` — camino feliz, nivel INFO** — en cada create/update de un service. Se agrega `redact_kv_string` y una rama `when String`: si la parte izquierda matchea `SENSITIVE_KEYS` se reemplaza el valor y **se conserva el nombre** (saber qué secreto apareció es diagnóstico útil; su valor no). El regex usa `[^=]+` a la izquierda para no partir en un `=` del valor (base64, URLs) y `/m` para valores multilínea. Afecta a **todas** las versiones anteriores — @Pslp
+  - **Hueco declarado, no cubierto por este fix:** `private_key` **no está** en `SENSITIVE_KEYS`, así que un PEM con ese nombre sigue saliendo en claro (hay un spec que lo fija como comportamiento conocido). Ampliar la lista va aparte: cambia la redacción para todos los consumidores.
+
+### Otros cambios
+- `spec.homepage` del gemspec pasa a `https://github.com/sequre/docker-swarm` (#27): el repo se transfirió de la cuenta personal `gedera` a la org `sequre`. De ahí derivan los cuatro metadata URIs (`source_code_uri`, `changelog_uri`, `bug_tracker_uri`, `documentation_uri`), así que desde esta versión apuntan a la ubicación nueva. Las versiones ya publicadas conservan la URL anterior — las salva el redirect de GitHub — @gedera
 
 ## [0.8.0] — 2026-07-22
 

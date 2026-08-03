@@ -1,6 +1,6 @@
 # Release — docker-swarm
 
-> meta: artefacto · RFC-014 · generado arch-structure + enriquecido arch-enrich · anclado a `cccfe63` · cobertura: §a estructura completa (versión · changelog · build-trigger · patrón); §b enrich completa (deploy · rollback · ambientes · dueño)
+> meta: artefacto · RFC-014 · generado arch-structure + enriquecido arch-enrich · anclado a `v0.9.0` · cobertura: §a estructura completa (versión · changelog · build-trigger · patrón); §b enrich completa (deploy · rollback · ambientes · dueño)
 
 ## 1. Resumen
 
@@ -12,7 +12,7 @@ Gema Ruby publicada en RubyGems. Release por **tag `v*`**: el push del tag dispa
 
 | campo | valor | fuente |
 |---|---|---|
-| versión actual | `0.7.2` | `lib/docker_swarm/version.rb` (`DockerSwarm::VERSION`) |
+| versión actual | `0.9.0` | `lib/docker_swarm/version.rb` (`DockerSwarm::VERSION`) |
 | esquema de versión | SemVer (`MAJOR.MINOR.PATCH`) | `CHANGELOG.md` (breaking/mejoras/correcciones por bump) |
 | artefacto liberado | gema `docker-swarm` a RubyGems | `docker-swarm.gemspec` (`spec.name`), `.github/workflows/release.yml` |
 | changelog | `CHANGELOG.md`, formato Keep a Changelog, entradas fechadas por versión | `CHANGELOG.md` |
