@@ -65,6 +65,32 @@ RSpec.describe DockerSwarm::Container do
     end
   end
 
+  describe ".index_query_params (#35)" do
+    it "declara los tres query params propios de ContainerList" do
+      expect(described_class.index_query_params).to eq(%i[all limit size])
+    end
+
+    it "manda since/before como FILTROS, no en la URL" do
+      expect(DockerSwarm::Api).to receive(:request).with(
+        hash_including(query_params: { filters: { "since" => [ "abc123" ] }.to_json })
+      ).and_return([])
+
+      described_class.where(since: "abc123")
+    end
+
+    it "manda size en la URL, no como filtro" do
+      expect(DockerSwarm::Api).to receive(:request).with(
+        hash_including(query_params: { size: true })
+      ).and_return([])
+
+      described_class.where(size: true)
+    end
+
+    it "no arrastra force, que no existe en el listado" do
+      expect(described_class.index_query_params).not_to include(:force)
+    end
+  end
+
   describe "#start" do
     it "calls the start endpoint" do
       expect(DockerSwarm::Api).to receive(:request).with(

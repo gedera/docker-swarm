@@ -15,6 +15,19 @@ module DockerSwarm
     DIGEST_STATUS = /\bDigest:\s*(sha256:[0-9a-f]+)/
 
     class << self
+      # `GET /images/json` declara dos query params propios además de `filters`: `all` y
+      # `digests` (spec v1.41, `ImageList`).
+      #
+      # Mismo caso que {DockerSwarm::Container}: **`since` y `before` son filtros** de
+      # este recurso (`<image-name>[:<tag>]`, `<image id>` o `<image@digest>`), así que
+      # el default de {DockerSwarm::Base} los mandaba a la URL, donde el Engine los ignora
+      # y devuelve la lista sin filtrar **sin error**. Ver #35.
+      #
+      # @return [Array<Symbol>] Symbols (matchean contra las claves de `filters`)
+      def index_query_params
+        %i[all digests].freeze
+      end
+
       # Pull explícito de una imagen (POST /images/create).
       #
       # Operación SÍNCRONA: consume el stream NDJSON de progreso hasta EOF, eleva
