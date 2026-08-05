@@ -51,6 +51,20 @@ RSpec.describe DockerSwarm::Container do
     end
   end
 
+  describe ".index_query_params (regresión #22)" do
+    it "NO declara status: en containers es un filtro válido de Docker, no un query param" do
+      expect(described_class.index_query_params).not_to include(:status)
+    end
+
+    it "sigue mandando status dentro del JSON de filters" do
+      expect(DockerSwarm::Api).to receive(:request).with(
+        hash_including(query_params: { filters: { "status" => [ "running" ] }.to_json })
+      ).and_return([])
+
+      described_class.where(status: "running")
+    end
+  end
+
   describe "#start" do
     it "calls the start endpoint" do
       expect(DockerSwarm::Api).to receive(:request).with(

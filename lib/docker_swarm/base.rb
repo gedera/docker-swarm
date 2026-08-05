@@ -46,14 +46,33 @@ module DockerSwarm
         all(filters)
       end
 
+      # Claves que el Engine toma como **query params propios** del listado
+      # (`?limit=`, `?all=`, …), no como *filters*.
+      #
+      # Todo lo que NO esté declarado acá se serializa dentro del JSON de `?filters=`.
+      # Si además no es un filtro válido del recurso, el Engine lo rechaza o lo ignora:
+      # el parámetro **no llega** y no hay forma de pedirlo desde la gema.
+      #
+      # Override en el modelo que declare uno propio (p. ej. `status` en
+      # {DockerSwarm::Service}). La lista **no** se generaliza acá por comodidad: un
+      # mismo nombre puede ser query param en un recurso y filtro legítimo en otro
+      # (`status` lo es en `/containers/json`), y globalizarlo lo saca del `?filters=`
+      # donde ese otro recurso lo necesita.
+      #
+      # @return [Array<Symbol>] nombres de query param
+      def index_query_params
+        %i[all force limit since before].freeze
+      end
+
       private
 
       def _fetch_all(filters = {})
         query = {}
 
         if filters.present?
-          global_params = filters.slice(:all, :force, :limit, :since, :before)
-          docker_filters = filters.except(:all, :force, :limit, :since, :before)
+          query_keys = index_query_params
+          global_params = filters.slice(*query_keys)
+          docker_filters = filters.except(*query_keys)
 
           query = global_params
 

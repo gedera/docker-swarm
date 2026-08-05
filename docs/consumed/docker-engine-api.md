@@ -1,6 +1,6 @@
 # Dependencias consumidas — docker-swarm
 
-> meta: artefacto · RFC-018 · generado arch-structure + enriquecido arch-enrich · anclado a `v0.9.0` · cobertura: superficie del Docker Engine API consumida por la gema (`api.rb` ENDPOINTS + `connection.rb`); §c/§e enriquecidas 1/1
+> meta: artefacto · RFC-018 · generado arch-structure + enriquecido arch-enrich · anclado a `v0.10.0` · cobertura: superficie del Docker Engine API consumida por la gema (`api.rb` ENDPOINTS + `connection.rb`); §c/§e enriquecidas 1/1
 
 ## 1. Resumen
 
@@ -39,7 +39,7 @@ Subset que la gema invoca, derivado de `Api::ENDPOINTS` (`api.rb:5-72`). `destin
 | nodes | destroy | `DELETE nodes/%<id>s` | — / — |
 | tasks | index / show | `GET tasks`, `GET tasks/%<id>s` | `?filters=` / array \| Hash |
 | tasks | logs | `GET tasks/%<id>s/logs` | `?stdout/stderr/...` / stream multiplexado (demux en el cliente) |
-| services | index / show | `GET services`, `GET services/%<id>s` | `?filters=` / array \| Hash |
+| services | index / show | `GET services`, `GET services/%<id>s` | `?filters=` + `?status=` (query propio, **no** filtro; ≥ v1.41) / array \| Hash; con `?status=true` cada elemento trae `ServiceStatus` |
 | services | create | `POST services/create` | payload (Spec aplanado) + header `X-Registry-Auth` (opcional, registry privado) / `{ID}` |
 | services | update | `POST services/%<id>s/update` | `?version=` (+ `?registryAuthFrom=` opcional: `spec`\|`previous-spec`) + payload + header `X-Registry-Auth` (opcional; excluyente con `registryAuthFrom`) / — |
 | services | destroy | `DELETE services/%<id>s` | — / — |
@@ -60,6 +60,20 @@ Subset que la gema invoca, derivado de `Api::ENDPOINTS` (`api.rb:5-72`). `destin
 | images | destroy | `DELETE images/%<id>s` | — / — |
 
 Serialización: request body no-String → JSON (`Content-Type: application/json`) vía `Middleware::RequestEncoder`; response `application/json` → `HashWithIndifferentAccess` recursivo vía `Middleware::ResponseJSONParser`.
+
+**Query params propios vs. `?filters=` (listados).** El Engine parte los parámetros de un listado en dos: query params propios de la ruta (`?limit=`, `?all=`, `?status=`) y el JSON de `?filters=`. La gema declara los primeros en `Base.index_query_params` (override por modelo); **todo lo demás se serializa como filtro**. Un query param propio no declarado ahí no llega nunca: viaja dentro del JSON de `filters` y el Engine lo rechaza (si valida la clave) o lo ignora.
+
+Los nombres **no** son globales — el mismo `status` es query param propio en `/services` y filtro válido en `/containers/json` (`running`, `exited`, …). De ahí que la lista sea por modelo y no una whitelist única.
+
+**`?status=true` en `/services`** (API ≥ v1.41) agrega a cada elemento:
+
+```json
+{ "ServiceStatus": { "RunningTasks": 2, "DesiredTasks": 3, "CompletedTasks": 0 } }
+```
+
+Es la **única** superficie donde el Engine publica el deseado de un service en modo `global`: un replicado lo expone en `Spec.Mode.Replicated.Replicas`, pero para un global ese campo no existe (el deseado es "una task por nodo elegible"). Sin `DesiredTasks` no hay número contra el cual comparar las tasks que corren.
+
+Como la gema no fija `?version=`, la versión efectiva la decide el host (ver arriba): en un Engine por debajo de v1.41 el parámetro se **ignora sin error** y `ServiceStatus` llega ausente. El consumidor tiene que tolerar `nil` — no hay señal de "no soportado".
 
 **Streams de logs (`containers`/`services`/`tasks` → `logs`).** Sin TTY el Engine multiplexa: 8 bytes de cabecera por frame (1 tipo de stream · 3 de relleno en cero · 4 de tamaño big-endian). `Middleware::LogStreamDemuxer` los saca, así que `Loggable#logs` entrega texto limpio.
 

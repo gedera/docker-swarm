@@ -63,6 +63,32 @@ RSpec.describe "DockerSwarm Services Integration", type: :integration do
         expect(described_class.all.map(&:ID)).to include(service_id)
       end
 
+      # El Engine solo publica ServiceStatus con ?status=true (API >= v1.41), y es la
+      # única fuente del deseado de un service en modo global. Ver #22.
+      it "puebla ServiceStatus al listar con status: true" do
+        service_id = service.ID
+
+        listed = nil
+        10.times do
+          listed = described_class.where(status: true).find { |s| s.ID == service_id }
+          break if listed&.ServiceStatus.present?
+          sleep 1
+        end
+
+        expect(listed).to be_present
+        expect(listed.ServiceStatus).to be_present
+        expect(listed.ServiceStatus["DesiredTasks"]).to eq(1)
+        expect(listed.ServiceStatus).to have_key("RunningTasks")
+      end
+
+      it "no publica ServiceStatus si no se pide status: true" do
+        service_id = service.ID
+        listed = described_class.all.find { |s| s.ID == service_id }
+
+        expect(listed).to be_present
+        expect(listed.ServiceStatus).to be_nil
+      end
+
       it "updates the service" do
         service # ensure creation
         new_params = {

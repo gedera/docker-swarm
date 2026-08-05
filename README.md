@@ -43,7 +43,7 @@ Documentación normada (RFC-001) por capa:
 |---|---|---|
 | Datos | — | `n/a` (gema sin DB) |
 | Glosario | [`docs/glossary/glossary.md`](docs/glossary/glossary.md) | completo (primitivas + arquitectura interna) |
-| Comportamiento | [`docs/behavior/behavior.md`](docs/behavior/behavior.md) | backfill on-demand + incremental (11 flujos) |
+| Comportamiento | [`docs/behavior/behavior.md`](docs/behavior/behavior.md) | backfill on-demand + incremental (12 flujos) |
 | Configuración | [`docs/config/configuracion.md`](docs/config/configuracion.md) | inventario base (7 opciones, sin env vars) |
 | Interfaz | [`docs/interface/interface.md`](docs/interface/interface.md) | API Ruby pública (11 modelos + Base + concerns) |
 | Topología | [`docs/topology/topology.md`](docs/topology/topology.md) | 3 deps runtime + grafo de contexto |

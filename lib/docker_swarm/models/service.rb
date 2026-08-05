@@ -9,6 +9,29 @@ module DockerSwarm
     include Concerns::Deletable
     include Concerns::Loggable
 
+    # `status` es un query param **propio** de `GET /services` (Engine API ≥ v1.41), no un
+    # filtro: con `?status=true` cada elemento del listado trae `ServiceStatus`
+    # (`RunningTasks` · `DesiredTasks` · `CompletedTasks`).
+    #
+    # Es el **único** lugar donde el Engine publica el deseado de un service en modo
+    # `global`. Un service replicado lo expone en `Spec.Mode.Replicated.Replicas`, pero
+    # para uno global ese campo no existe —el deseado es "una task por nodo elegible"—,
+    # así que sin `DesiredTasks` no hay número contra el cual comparar las tasks que
+    # corren: un global degradado *parcialmente* (2 de 3 nodos) es indistinguible de uno
+    # sano, y solo se detecta el caso extremo de cero tasks.
+    #
+    # Va acá y no en la whitelist de {DockerSwarm::Base} porque en `/containers/json`
+    # `status` **sí** es un filtro válido (`running`, `exited`, …): globalizarlo lo sacaría
+    # del `?filters=` y rompería `Container.where(status: "running")`.
+    #
+    # En un Engine por debajo de v1.41 el parámetro se ignora sin error y `ServiceStatus`
+    # llega ausente → el consumidor tiene que tolerar `nil`.
+    #
+    # @return [Array<Symbol>]
+    def self.index_query_params
+      (super + %i[status]).freeze
+    end
+
     # Restarts the service by incrementing ForceUpdate, which causes
     # Docker to recreate all tasks.
     #

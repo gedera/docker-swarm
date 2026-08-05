@@ -58,7 +58,7 @@ Defaults son razonables: en local sin TLS, no necesitás bloque `configure`.
 
 | Modelo | Class methods | Instance methods | Notas |
 |---|---|---|---|
-| `Service` | `all(filters)`, `find(id)`, `where(filters)`, `create(attrs)` | `update(attrs)`, `restart`, `destroy`, `logs(query)`, `reload`, `persisted?`, `id` | CRUD completo + force-recreate de tasks; `create`/`update` aceptan `registry_auth:` (+ `update`: `registry_auth_from:`) para auth de registry privado |
+| `Service` | `all(filters)`, `find(id)`, `where(filters)`, `create(attrs)` | `update(attrs)`, `restart`, `destroy`, `logs(query)`, `reload`, `persisted?`, `id` | CRUD completo + force-recreate de tasks; `create`/`update` aceptan `registry_auth:` (+ `update`: `registry_auth_from:`) para auth de registry privado; `where(status: true)` puebla `ServiceStatus` (único deseado legible de un service `global`) |
 | `Node` | `all(filters)`, `find(id)`, `where(filters)` | `update(attrs)`, `destroy` | No `create` (los nodos se unen fuera de la gema) |
 | `Task` | `all(filters)`, `find(id)`, `where(filters)` | `logs(query)`, `reload` | Read-only (generados por orquestador) |
 | `Container` | `all(filters)`, `find(id)`, `where(filters)`, `create(attrs)` | `start`, `stop`, `destroy`, `logs(query)` | `create` manda `name` por query string (`create_query_params`) — en el body Docker lo descarta en silencio |
@@ -79,6 +79,11 @@ Detalle por símbolo en [`docs/glossary/glossary.md`](docs/glossary/glossary.md)
 DockerSwarm::Service.all(label: ["env=production"])
 DockerSwarm::Node.all(role: ["manager"])
 DockerSwarm::Container.all(status: ["running"])
+
+# Listar pidiendo ServiceStatus (query param propio, NO filtro; Engine API >= v1.41)
+DockerSwarm::Service.where(status: true).each do |svc|
+  svc.ServiceStatus # => { "RunningTasks" => 2, "DesiredTasks" => 3, "CompletedTasks" => 0 } | nil
+end
 
 # Lookup graceful (nil si 404)
 service = DockerSwarm::Service.find("svc-id")  # => Service | nil
@@ -134,6 +139,8 @@ Todas heredan de `DockerSwarm::Error`. Tres formas de acceso equivalentes: `Dock
 - **`Spec` se mergea con `deep_merge` en updates**, no se reemplaza. Pasale sólo los campos que cambian: `service.update(Mode: {...})`, no `service.update(Spec: {...completo})`.
 - **`assign_attributes` muta antes de validar.** Si `update` falla por `valid?` o por el API, la instancia local quedó mutada. Hacé `reload` si necesitás estado limpio.
 - **`Container.create` manda el nombre por query string.** Docker **descarta en silencio** un `name:` en el body y responde `201`: el container nace con nombre aleatorio y un reintento duplica en vez de adoptar. La gema lo resuelve sola vía `Container.create_query_params == %w[name]` — pero si armás el request por afuera (`DockerSwarm.request`), el `?name=` es tuyo. Ver ADR-025 cláusula 1 y §3.11 de `docs/behavior/behavior.md`.
+- **`where` parte las claves en dos: query params propios vs. `?filters=`.** Solo lo declarado en `Base.index_query_params` (`%i[all force limit since before]`, más `:status` en `Service`) viaja en la URL; **todo lo demás se serializa como filtro de Docker**. Si le pasás un query param propio que el modelo no declara, no llega: va dentro de `filters` y el Engine lo rechaza o lo ignora — sin error que indique que iba en la URL. Los nombres no son globales: `status` es query param en `/services` y **filtro válido** en `/containers/json`.
+- **`ServiceStatus` solo aparece con `Service.where(status: true)`**, y es el **único** lugar donde el Engine publica el deseado de un service en modo `global` (un replicado lo tiene en `Spec.Mode.Replicated.Replicas`; un global no tiene ese campo). Sin `DesiredTasks` un global corriendo en 2 de 3 nodos elegibles es indistinguible de uno sano. Requiere API ≥ v1.41 y **degrada en silencio**: la gema no fija `?version=`, así que en un Engine anterior el parámetro se ignora y `ServiceStatus` llega `nil` — no hay señal de "no soportado", el consumidor tiene que tolerarlo. Ver §3.12 de `docs/behavior/behavior.md`.
 - **`logs` devuelve texto ya demultiplexado.** Sin TTY el Engine enmarca cada fragmento con 8 bytes de cabecera; `Middleware::LogStreamDemuxer` los saca en `Container`, `Service` y `Task`. Dos consecuencias: **`stdout` y `stderr` vienen intercalados** en un solo String (si necesitás un dato puntual, delimitalo en origen desde el `Cmd`), y **un frame partido entre chunks no se reensambla** — el demux es todo-o-nada, así que ante cualquier inconsistencia te devuelve el body intacto en vez de texto a medias. Con `follow: 1` el body no llega completo, así que no esperes demux ahí.
 - **`Image.create` retirado (breaking).** Ya no existe (`Image` dejó de ser Creatable; el `create` estaba roto y sin consumidores). Usá `Image.pull(image_reference, registry_auth:)`.
 - **Auth de registry privado soportado** vía credencial opaca base64url en `registry_auth:` — `Image.pull(ref, registry_auth:)`, `Service.create(..., registry_auth:)` y `Service#update(..., registry_auth:` / `registry_auth_from:)`. Viaja por header `X-Registry-Auth` (o query `registryAuthFrom`: `spec`\|`previous-spec`, excluyentes); la gema no la mintea ni decodifica. Ver flujos 3.9/3.10 de `docs/behavior/behavior.md`.
