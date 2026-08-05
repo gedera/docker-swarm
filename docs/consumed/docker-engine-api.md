@@ -75,6 +75,8 @@ Es la **única** superficie donde el Engine publica el deseado de un service en 
 
 Como la gema no fija `?version=`, la versión efectiva la decide el host (ver arriba): en un Engine por debajo de v1.41 el parámetro se **ignora sin error** y `ServiceStatus` llega ausente. El consumidor tiene que tolerar `nil` — no hay señal de "no soportado".
 
+**`DesiredTasks: 0` no significa "sin nodos elegibles".** En un service `global` recién creado el Engine publica el objeto con los tres contadores en **0** y recién después evalúa los nodos (medido contra un Engine `1.54`, swarm de un nodo: `DesiredTasks` pasa de 0 a 1 en ~1s). O sea que hay una ventana en la que `RunningTasks == DesiredTasks == 0` — un consumidor que compare los dos números lee "sano" (0 de 0) o "degradado total" según cómo ordene la comparación, y en ninguno de los dos casos es cierto: el deseado todavía no está calculado. Para decidir salud hace falta `DesiredTasks.positive?` como precondición, no como resultado.
+
 **Streams de logs (`containers`/`services`/`tasks` → `logs`).** Sin TTY el Engine multiplexa: 8 bytes de cabecera por frame (1 tipo de stream · 3 de relleno en cero · 4 de tamaño big-endian). `Middleware::LogStreamDemuxer` los saca, así que `Loggable#logs` entrega texto limpio.
 
 El `Content-Type` **no alcanza** para decidir. `application/vnd.docker.multiplexed-stream` existe **desde la API v1.42**; su entrada de changelog dice, textual:

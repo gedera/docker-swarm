@@ -27,7 +27,8 @@ module DockerSwarm
     # En un Engine por debajo de v1.41 el parámetro se ignora sin error y `ServiceStatus`
     # llega ausente → el consumidor tiene que tolerar `nil`.
     #
-    # @return [Array<Symbol>]
+    # @return [Array<Symbol>] Symbols (no Strings como +create_query_params+): acá se
+    #   matchea contra las claves de +filters+.
     def self.index_query_params
       (super + %i[status]).freeze
     end
