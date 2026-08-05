@@ -48,6 +48,20 @@ RSpec.describe "DockerSwarm Services Integration", type: :integration do
 
       after { service.destroy rescue nil }
 
+      # El poll corta con `DesiredTasks` positivo, NO con `ServiceStatus` presente: en un
+      # global recién creado el Engine publica el objeto de entrada con los tres contadores
+      # en 0 y recién después evalúa los nodos elegibles (medido: 0 → 1 en ~1s en un swarm
+      # de un nodo). Un replicado, en cambio, ya lo trae del Spec en la primera vuelta.
+      def listed_with_status(service_id)
+        listed = nil
+        10.times do
+          listed = described_class.where(status: true).find { |s| s.ID == service_id }
+          break if listed&.ServiceStatus&.dig("DesiredTasks").to_i.positive?
+          sleep 1
+        end
+        listed
+      end
+
       it "creates a service with an ID" do
         expect(service.ID).to be_present
       end
@@ -61,6 +75,40 @@ RSpec.describe "DockerSwarm Services Integration", type: :integration do
       it "lists the service in .all" do
         service_id = service.ID
         expect(described_class.all.map(&:ID)).to include(service_id)
+      end
+
+      # El Engine solo publica ServiceStatus con ?status=true (API >= v1.41), y es la
+      # única fuente del deseado de un service en modo global. Ver #22.
+      it "puebla ServiceStatus al listar con status: true" do
+        listed = listed_with_status(service.ID)
+
+        expect(listed).to be_present
+        expect(listed.ServiceStatus).to be_present
+        expect(listed.ServiceStatus["DesiredTasks"]).to eq(1)
+        expect(listed.ServiceStatus).to have_key("RunningTasks")
+      end
+
+      it "no publica ServiceStatus si no se pide status: true" do
+        service_id = service.ID
+        listed = described_class.all.find { |s| s.ID == service_id }
+
+        expect(listed).to be_present
+        expect(listed.ServiceStatus).to be_nil
+      end
+
+      # El caso que justifica el PR: en modo global no hay campo de réplicas en el Spec,
+      # así que ServiceStatus es la ÚNICA fuente del deseado. En un swarm de un nodo el
+      # deseado de un global también es 1, así que el caso entra barato en la suite.
+      context "en modo global" do
+        let(:params) { super().merge(Mode: { Global: {} }) }
+
+        it "expone el deseado que Spec.Mode no publica" do
+          listed = listed_with_status(service.ID)
+
+          expect(listed).to be_present
+          expect(listed.ServiceStatus["DesiredTasks"]).to eq(1)
+          expect(listed.Spec.dig("Mode", "Replicated")).to be_nil
+        end
       end
 
       it "updates the service" do

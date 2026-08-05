@@ -126,6 +126,57 @@ RSpec.describe DockerSwarm::Service do
     end
   end
 
+  describe "query param `status` en el listado (#22)" do
+    let(:service_status) { { "RunningTasks" => 2, "DesiredTasks" => 3, "CompletedTasks" => 0 } }
+
+    it "declara `status` como query param propio, además de los globales de Base" do
+      expect(described_class.index_query_params).to include(:status)
+      expect(described_class.index_query_params).to include(:all, :force, :limit, :since, :before)
+    end
+
+    it "manda `?status=true` como query param y NO dentro del JSON de filters" do
+      expect(DockerSwarm::Api).to receive(:request).with(
+        hash_including(action: described_class.routes[:index], query_params: { status: true })
+      ).and_return([])
+
+      described_class.where(status: true)
+    end
+
+    it "convive con un filtro real de Docker en la misma llamada" do
+      expect(DockerSwarm::Api).to receive(:request).with(
+        hash_including(
+          query_params: { status: true, filters: { "name" => [ "my-service" ] }.to_json }
+        )
+      ).and_return([])
+
+      described_class.where(status: true, name: "my-service")
+    end
+
+    it "no cambia el listado sin `status` (compatible hacia atrás)" do
+      expect(DockerSwarm::Api).to receive(:request).with(
+        hash_including(query_params: {})
+      ).and_return([])
+
+      described_class.all
+    end
+
+    it "expone `ServiceStatus` en las instancias del listado" do
+      allow(DockerSwarm::Api).to receive(:request)
+        .and_return([ valid_attributes.merge("ServiceStatus" => service_status) ])
+
+      listed = described_class.where(status: true).first
+
+      expect(listed.ServiceStatus).to eq(service_status)
+      expect(listed.ServiceStatus["DesiredTasks"]).to eq(3)
+    end
+
+    it "deja `ServiceStatus` en nil si el Engine no lo publica (API < v1.41)" do
+      allow(DockerSwarm::Api).to receive(:request).and_return([ valid_attributes ])
+
+      expect(described_class.where(status: true).first.ServiceStatus).to be_nil
+    end
+  end
+
   describe "registry auth (#19)" do
     describe "en create" do
       before do

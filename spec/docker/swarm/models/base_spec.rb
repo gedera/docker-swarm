@@ -79,6 +79,56 @@ RSpec.describe DockerSwarm::Base do
     end
   end
 
+  describe ".index_query_params" do
+    class DummyModelWithQueryParam < DockerSwarm::Base
+      def self.resource_name
+        "services"
+      end
+
+      def self.index_query_params
+        (super + %i[status]).freeze
+      end
+    end
+
+    it "declara los query params globales del Engine por default" do
+      expect(DummyModel.index_query_params).to eq(%i[all force limit since before])
+    end
+
+    it "manda los declarados como query params, fuera del JSON de filters" do
+      expect(DockerSwarm::Api).to receive(:request).with(
+        hash_including(query_params: { limit: 5 })
+      ).and_return([])
+
+      DummyModel.all(limit: 5)
+    end
+
+    it "manda como filter de Docker toda clave NO declarada" do
+      expect(DummyModel.index_query_params).not_to include(:status)
+
+      expect(DockerSwarm::Api).to receive(:request).with(
+        hash_including(query_params: { filters: { "status" => [ "running" ] }.to_json })
+      ).and_return([])
+
+      DummyModel.all(status: "running")
+    end
+
+    it "respeta el override del modelo: la clave declarada sale del filters y va a la query" do
+      expect(DockerSwarm::Api).to receive(:request).with(
+        hash_including(query_params: { status: true })
+      ).and_return([])
+
+      DummyModelWithQueryParam.all(status: true)
+    end
+
+    it "particiona query params y filters en la misma llamada" do
+      expect(DockerSwarm::Api).to receive(:request).with(
+        hash_including(query_params: { status: true, filters: { "name" => [ "web" ] }.to_json })
+      ).and_return([])
+
+      DummyModelWithQueryParam.all(status: true, name: "web")
+    end
+  end
+
   describe ".find" do
     it "fetches a single item by ID" do
       expect(DockerSwarm::Api).to receive(:request).with(

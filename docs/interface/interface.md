@@ -1,6 +1,6 @@
 # Interfaz — docker-swarm
 
-> meta: artefacto · RFC-004 · generado arch-structure · anclado a `v0.9.0` · cobertura: API Ruby pública de la gema (`lib/docker_swarm/**`); símbolos internos marcados en §4
+> meta: artefacto · RFC-004 · generado arch-structure · anclado a `v0.10.0` · cobertura: API Ruby pública de la gema (`lib/docker_swarm/**`); símbolos internos marcados en §4
 
 ## 1. Resumen
 
@@ -15,7 +15,7 @@ Proyección RBS-conceptual: `símbolo · tipo · nota` (raíz → profundidad �
 | símbolo | tipo | nota |
 |---|---|---|
 | `DockerSwarm` | módulo | namespace raíz |
-| `DockerSwarm::VERSION` | constante | `"0.8.0"` (`version.rb`) |
+| `DockerSwarm::VERSION` | constante | `"0.9.0"` (`version.rb`) |
 | `DockerSwarm.configuration` | attr (r/w) | instancia de `Configuration`; lazy-init en `configure`/`connection` |
 | `DockerSwarm.configure { \|config\| ... }` | método de módulo | crea/yields `Configuration`; aplica `log_level` al logger; resetea la conexión memoizada |
 | `DockerSwarm.connection` | método de módulo | `Connection` memoizada (auto-`configure` si falta) |
@@ -48,6 +48,7 @@ Inventario completo de opciones: [`docs/config/configuracion.md`](../config/conf
 | `.all(filters = {})` | método de clase | `GET index`; mapea a instancias; aplica `root_key`; `[]` si vacío |
 | `.find(id)` | método de clase | `GET show`; `nil` si `Errors::NotFound` |
 | `.where(filters)` | método de clase | alias de `all` |
+| `.index_query_params` | método de clase | `%i[all force limit since before]` por default; override por modelo (`+ :status` en `Service`). Claves que viajan como **query params propios** del listado; **todo lo no declarado se serializa dentro del JSON de `?filters=`** — si tampoco es filtro válido del recurso, el Engine lo rechaza o lo ignora |
 | `#initialize(attributes = {})` | método de instancia | `assign_attributes` si presente |
 | `#assign_attributes(new_attributes)` | método de instancia | normaliza `Id`→`ID`; `deep_merge` del campo `Spec`; `ArgumentError` si no es Hash |
 | `#attributes` | método de instancia | `instance_values` sin internos de ActiveModel |
@@ -76,7 +77,7 @@ Inventario completo de opciones: [`docs/config/configuracion.md`](../config/conf
 
 | símbolo | tipo | concerns + métodos propios |
 |---|---|---|
-| `DockerSwarm::Service` | clase < Base | Creatable, Updatable, Deletable, Loggable; `#restart` (incrementa `TaskTemplate.ForceUpdate`); `create`/`update` aceptan `registry_auth:` (+ `update`: `registry_auth_from:`) para auth de registry privado |
+| `DockerSwarm::Service` | clase < Base | Creatable, Updatable, Deletable, Loggable; `#restart` (incrementa `TaskTemplate.ForceUpdate`); `create`/`update` aceptan `registry_auth:` (+ `update`: `registry_auth_from:`) para auth de registry privado; `.index_query_params` agrega `:status` → `where(status: true)` puebla `ServiceStatus` (`RunningTasks`/`DesiredTasks`/`CompletedTasks`), único lugar donde el Engine publica el deseado de un service `global` |
 | `DockerSwarm::Node` | clase < Base | Updatable, Deletable (sin `create`: los nodos se unen fuera de la gema) |
 | `DockerSwarm::Task` | clase < Base | Loggable (read-only; generadas por el orquestador) |
 | `DockerSwarm::Container` | clase < Base | Creatable, Deletable, Loggable; `#start`, `#stop`; `.create_query_params == %w[name]` (el Engine toma el nombre por query string — en el body lo descarta en silencio y el container nace con nombre aleatorio). El `create` **no** es gap intencional desde ADR-025 cláusula 1 |

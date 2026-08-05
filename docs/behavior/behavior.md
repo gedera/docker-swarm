@@ -1,6 +1,6 @@
 # Comportamiento — docker-swarm
 
-> meta: artefacto · RFC-007 · generado dev-enrich · anclado a `v0.9.0` · cobertura: 11 flujos load-bearing (8 backfill inicial + 3 nuevos: auth de registry privado, `Image.pull` síncrono, `Container.create`)
+> meta: artefacto · RFC-007 · generado dev-enrich · anclado a `v0.10.0` · cobertura: 12 flujos load-bearing (8 backfill inicial + 4 nuevos: auth de registry privado, `Image.pull` síncrono, `Container.create`, partición query params/filters del listado)
 
 ## 1. Resumen
 
@@ -8,7 +8,7 @@ Flujos de ejecución load-bearing de `docker-swarm`: cómo se materializan en ru
 
 ## 2. Cobertura declarada
 
-### Documentados (11)
+### Documentados (12)
 
 1. `Service.create` + reload
 2. `Service.update` con `Version.Index`
@@ -21,6 +21,7 @@ Flujos de ejecución load-bearing de `docker-swarm`: cómo se materializan en ru
 9. Auth de registry privado (`RegistryAuth.resolve` → `X-Registry-Auth` / `registryAuthFrom`)
 10. `Image.pull` síncrono (stream NDJSON → error tipado → resultado explícito)
 11. `Container.create` con nombre por query string (`create_query_params`)
+12. `Model.where` — partición query params propios vs. `?filters=` (`index_query_params`)
 
 ### No documentados (ausencia ≠ inexistencia, RFC-007)
 
@@ -327,9 +328,36 @@ sequenceDiagram
 - **El atributo se excluye del payload**, no se duplica: mandarlo en los dos lados no da error pero deja el body con una clave que Docker ignora.
 - Hereda el flujo §3.1: `valid?` antes del POST, `reload` después, y **sin retry** por ser `POST` (§3.5). Si el `create` falla por `Communication`, el caller decide — con nombre determinista puede adoptar el existente en el reintento.
 
+### 3.12 `Model.where` — partición query params propios vs. `?filters=`
+
+El Engine parte los parámetros de un listado en dos grupos, y la gema tiene que decidir a cuál va cada clave **antes** de armar la URL. `Base.index_query_params` es esa declaración; todo lo que no esté ahí se serializa dentro del JSON de `?filters=`.
+
+La trampa: un query param propio que el modelo no declaró **no llega**. Viaja dentro de `filters`, donde el Engine lo rechaza o lo ignora según el recurso — no hay error que diga "esa clave iba en la URL".
+
+```mermaid
+flowchart TD
+    A["Model.where(status: true, name: 'web')"] --> B["_fetch_all"]
+    B --> C{"clave ∈ index_query_params?"}
+    C -->|sí| D["query params propios<br/>{ status: true }"]
+    C -->|no| E["docker_filters<br/>{ name: 'web' }"]
+    E --> F["downcase claves + Array(valor)<br/>→ JSON"]
+    D --> G["query = { status: true,<br/>filters: '{\"name\":[\"web\"]}' }"]
+    F --> G
+    G --> H["GET /services?status=true&filters=..."]
+    H --> I["array de Hash → instancias"]
+```
+
+**Notas load-bearing:**
+- **La lista es por modelo, no global.** `Base` declara `%i[all force limit since before]`; `Service` la extiende con `:status`. Deliberadamente no se generaliza: `status` es query param propio en `/services` pero **filtro válido** en `/containers/json` (`running`, `exited`, …), así que subirlo a `Base` lo sacaría del `?filters=` donde containers lo necesita. Hay un spec de regresión que lo fija.
+- **`Service.where(status: true)` es lo que habilita leer `ServiceStatus`** (`RunningTasks` · `DesiredTasks` · `CompletedTasks`), única superficie donde el Engine publica el **deseado** de un service en modo `global` — un replicado lo tiene en `Spec.Mode.Replicated.Replicas`, un global no tiene ese campo. Sin eso, un global corriendo en 2 de 3 nodos elegibles es indistinguible de uno sano: se ven las tasks que corren, no contra qué comparar.
+- **Requiere API ≥ v1.41 y degrada en silencio.** La gema no fija `?version=` (§3.5 / [`docs/consumed/`](../consumed/docker-engine-api.md)); en un Engine anterior el parámetro se ignora sin error y `ServiceStatus` llega ausente → el consumidor tolera `nil`, no hay señal de "no soportado".
+- **`DesiredTasks` arranca en 0 en un `global` recién creado** y el Engine lo completa después de evaluar los nodos (~1s, medido). En esa ventana `RunningTasks == DesiredTasks == 0`: el deseado no está calculado, así que comparar los dos números miente. Precondición de salud = `DesiredTasks.positive?`. Detalle en [`docs/consumed/`](../consumed/docker-engine-api.md).
+- **Las claves se matchean como símbolos.** `where("status" => true)` cae en `docker_filters` (`slice(:status)` no matchea la string). Comportamiento preexistente y común a todos los query params del listado, no introducido por `:status`.
+- Sin filtros no hay query: `all` manda `query_params: {}` — el listado por default no cambió.
+
 ## 4. Cobertura y fronteras
 
-- **Cobertura (RFC-007 backfill on-demand + incremental):** 8 flujos load-bearing en el backfill inicial + 2 agregados con el soporte de auth de registry privado (auth de registry privado, `Image.pull` síncrono) + 1 con el `create` de containers = 11. Esta gema es chica; el backfill completo era factible y se hizo, y a partir de ahí se acreta por PR.
+- **Cobertura (RFC-007 backfill on-demand + incremental):** 8 flujos load-bearing en el backfill inicial + 2 agregados con el soporte de auth de registry privado (auth de registry privado, `Image.pull` síncrono) + 1 con el `create` de containers + 1 con la partición query params/filters del listado = 12. Esta gema es chica; el backfill completo era factible y se hizo, y a partir de ahí se acreta por PR.
 - **Frontera con glosario:** términos (Service, Spec, Version.Index, etc.) viven en [`docs/glossary/glossary.md`](../glossary/glossary.md). Esta capa documenta secuencias, no significado.
 - **Frontera con configuración:** `DockerSwarm.configure` es boot, no flujo de negocio. No se diagrama.
 - **No localizable / fuera de alcance:**
