@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.10.0] — 2026-08-05
+
 ### Nuevas funcionalidades
 - **`Service.where(status: true)` puebla `ServiceStatus`** (#22). `status` es un query param **propio** de `GET /services` (Engine API ≥ v1.41), no un filtro, y hasta ahora la gema no tenía forma de mandarlo: caía en el JSON de `?filters=`, donde el Engine no lo acepta como filtro de `/services`. Con esto cada elemento del listado trae `ServiceStatus` (`RunningTasks` · `DesiredTasks` · `CompletedTasks`), que es el **único** lugar donde el Engine publica el deseado de un service en modo `global` — un replicado lo expone en `Spec.Mode.Replicated.Replicas`, pero para un global ese campo no existe. Sin `DesiredTasks` un global corriendo en 2 de 3 nodos elegibles es indistinguible de uno sano: solo se detecta el caso extremo de cero tasks — @Pslp
   - La whitelist de query params del listado sale a `Base.index_query_params` (default `%i[all force limit since before]`, **override por modelo**), y `Service` la extiende con `:status`. Se resuelve así, y **no** subiendo `status` a `Base`, porque en `/containers/json` `status` **sí** es un filtro válido (`running`, `exited`, …): globalizarlo lo sacaría del `?filters=` y rompería `Container.where(status: "running")`. Hay un spec de regresión que lo fija.
