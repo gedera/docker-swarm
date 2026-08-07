@@ -32,7 +32,7 @@ GEM
     connection_pool (3.0.2)
     diff-lcs (1.6.2)
     drb (2.2.3)
-    excon (1.5.0)
+    excon (1.6.0)
       logger
     i18n (1.15.2)
       concurrent-ruby (~> 1.0)
@@ -137,7 +137,7 @@ CHECKSUMS
   diff-lcs (1.6.2) sha256=9ae0d2cba7d4df3075fe8cd8602a8604993efc0dfa934cff568969efb1909962
   docker-swarm (0.10.0)
   drb (2.2.3) sha256=0b00d6fdb50995fe4a45dea13663493c841112e4068656854646f418fda13373
-  excon (1.5.0) sha256=c503ad1d0123bc8ab2a062ff3789dc891ec368cb9e13765ab88a9c58c8bb6d50
+  excon (1.6.0) sha256=ebe2ab83c055ef8e117c62c91a3535b966a59a64868188219d49ab90cd83b65f
   i18n (1.15.2) sha256=00f9eb62412fe593b2a65a97daa75300d37abb8f7202ec748e94b6d46a9dd1b5
   io-console (0.8.2) sha256=d6e3ae7a7cc7574f4b8893b4fca2162e57a825b223a177b7afa236c5ef9814cc
   json (2.21.2) sha256=1f1d3b7cf2b3ba1a69beca0bb6db13d5438b80bff3cd54cdaaa620b9b07c1c6a
