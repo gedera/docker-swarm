@@ -65,6 +65,17 @@ Serialización: request body no-String → JSON (`Content-Type: application/json
 
 Los nombres **no** son globales — el mismo `status` es query param propio en `/services` y filtro válido en `/containers/json` (`running`, `exited`, …). De ahí que la lista sea por modelo y no una whitelist única.
 
+**Partición real por listado**, verificada contra el spec v1.41 (`ContainerList`, `ImageList`, `ServiceList`, …). El resto de los recursos (`/networks`, `/volumes`, `/nodes`, `/tasks`, `/secrets`, `/configs`) declara **solo** `filters`:
+
+| listado | query params propios | dónde caen `since`/`before` |
+|---|---|---|
+| `GET containers/json` | `all`, `limit`, `size` | **filtros** del recurso |
+| `GET images/json` | `all`, `digests` | **filtros** del recurso |
+| `GET services` | `status` | no existen |
+| `GET networks` · `volumes` · `nodes` · `tasks` · `secrets` · `configs` | — (solo `filters`) | no existen |
+
+Consecuencia para el default de `Base` (`%i[all force limit since before]`): **no matchea el listado de ningún recurso**. `since`/`before` son filtros donde existen, `force` no es query param de ningún listado (es de `DELETE`/prune) y `limit` solo aplica a containers. Un modelo que no declare su lista propia rutea `since`/`before` a la URL, donde el Engine **los ignora y devuelve la lista sin filtrar, sin error** — resultado incorrecto silencioso. `Container` e `Image` declaran la suya por eso (#35); los que solo aceptan `filters` no se ven afectados en la práctica, porque esas claves tampoco son filtros válidos ahí.
+
 **`?status=true` en `/services`** (API ≥ v1.41) agrega a cada elemento:
 
 ```json

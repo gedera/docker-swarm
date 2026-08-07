@@ -18,6 +18,28 @@ RSpec.describe DockerSwarm::Image do
   let(:image_ref) { "registry.example.com/team/app:latest" }
   let(:encoded_auth) { "eyJ1c2VybmFtZSI6Ii4uLiJ9" } # base64url(JSON AuthConfig), valor opaco
 
+  describe ".index_query_params (#35)" do
+    it "declara los dos query params propios de ImageList" do
+      expect(described_class.index_query_params).to eq(%i[all digests])
+    end
+
+    it "manda since/before como FILTROS, no en la URL" do
+      expect(DockerSwarm::Api).to receive(:request).with(
+        hash_including(query_params: { filters: { "since" => [ "alpine:3.18" ] }.to_json })
+      ).and_return([])
+
+      described_class.where(since: "alpine:3.18")
+    end
+
+    it "manda digests en la URL, no como filtro" do
+      expect(DockerSwarm::Api).to receive(:request).with(
+        hash_including(query_params: { digests: true })
+      ).and_return([])
+
+      described_class.where(digests: true)
+    end
+  end
+
   describe ".pull" do
     it "existe como operación de clase" do
       expect(described_class).to respond_to(:pull)

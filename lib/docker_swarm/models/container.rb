@@ -17,6 +17,21 @@ module DockerSwarm
       %w[name].freeze
     end
 
+    # `GET /containers/json` declara exactamente tres query params propios además de
+    # `filters`: `all`, `limit` y `size` (spec v1.41, `ContainerList`).
+    #
+    # No hereda el default de {DockerSwarm::Base} porque **`since` y `before` son
+    # filtros** de este recurso, no query params: ruteados a la URL el Engine los ignora
+    # y devuelve **la lista sin filtrar, sin error** — resultado incorrecto silencioso,
+    # peor que el rechazo ruidoso de #22. Y `size` faltaba: es query param propio (pide
+    # el tamaño de los archivos del container), así que viajaba dentro de `filters` como
+    # filtro inválido. Ver #35.
+    #
+    # @return [Array<Symbol>] Symbols (matchean contra las claves de `filters`)
+    def self.index_query_params
+      %i[all limit size].freeze
+    end
+
     # Starts the container
     # @return [Boolean] true if successful
     def start

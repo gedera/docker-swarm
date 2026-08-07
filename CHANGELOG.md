@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Correcciones
+- **`Container.where(since:)` / `where(before:)` filtran de verdad, y `size` llega al Engine** (#35). Las dos claves son **filtros** de `GET /containers/json` según el spec v1.41 (`ContainerList`), no query params, pero el default de `Base.index_query_params` las ruteaba a la URL: el Engine **las ignoraba y devolvía la lista sin filtrar, sin ningún error** — resultado incorrecto silencioso. Y `size` (query param propio, pide el tamaño de los archivos del container) viajaba dentro de `?filters=` como filtro inválido. `Container` ahora declara `%i[all limit size]` — @Pslp
+  - **Mismo bug en `Image`**, con la misma evidencia: `/images/json` declara `all` y `digests` como query params propios y lista `before`/`since` entre sus filtros. `Image` ahora declara `%i[all digests]`.
+  - **Cambio de comportamiento observable:** `Container.where(since: id)` antes devolvía **todos** los containers y ahora filtra. Si algún consumidor compensaba filtrando en Ruby, el resultado no cambia; si dependía de recibir la lista completa, cambia.
+  - `Base` **no** se toca: su default (`%i[all force limit since before]`) no matchea el listado de ningún recurso, pero limpiarlo convertiría no-ops silenciosos en filtros inválidos hacia el Engine para los 7 modelos que hoy no declaran lista propia. Queda como decisión aparte.
+
 ## [0.10.0] — 2026-08-05
 
 ### Nuevas funcionalidades
