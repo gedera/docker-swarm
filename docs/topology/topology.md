@@ -1,6 +1,6 @@
 # Topología — docker-swarm
 
-> meta: artefacto · RFC-006 · generado arch-structure · anclado a `15bcd21` · cobertura: dependencias runtime (`.gemspec` + `Gemfile.lock`) y mapa de contexto de la gema
+> meta: artefacto · RFC-006 · generado arch-structure · anclado a `d731a8a` · cobertura: dependencias runtime (`.gemspec` + `Gemfile.lock`) y mapa de contexto de la gema
 
 ## 1. Resumen
 
@@ -14,9 +14,9 @@ Runtime declaradas en `docker-swarm.gemspec`; versiones resueltas en `Gemfile.lo
 
 | nombre | versión (constraint) | resuelta | rol |
 |---|---|---|---|
-| `activesupport` | `>= 6.0` | 8.1.3 | core-ext (`HashWithIndifferentAccess`, `deep_merge`, `blank?`, `demodulize`, `pluralize`) |
-| `activemodel` | `>= 6.0` | 8.1.3 | `ActiveModel::Model` (validaciones, API de atributos) en `Base` |
-| `excon` | `>= 0.80` | 1.5.0 | cliente HTTP con soporte nativo de Unix socket + stack de middlewares |
+| `activesupport` | `>= 6.0` | 8.1.3.1 | core-ext (`HashWithIndifferentAccess`, `deep_merge`, `blank?`, `demodulize`, `pluralize`) |
+| `activemodel` | `>= 6.0` | 8.1.3.1 | `ActiveModel::Model` (validaciones, API de atributos) en `Base` |
+| `excon` | `>= 0.80` | 1.6.0 | cliente HTTP con soporte nativo de Unix socket + stack de middlewares |
 
 Desarrollo / test (no se empaquetan): `rake ~> 13.0`, `rspec ~> 3.0`, `pry`, `rubocop-rails-omakase`.
 
@@ -45,7 +45,7 @@ No aplica: es una librería embebida en el proceso del consumidor (sin web/worke
 
 | afirmación | confidence | a verificar |
 |---|---|---|
-| `activesupport`/`activemodel` 8.1.3 son las resueltas hoy, pero el constraint `>= 6.0` admite Rails 6/7/8 | declared | `Gemfile.lock` fija 8.1.3; el `.gemspec` no pone techo |
+| `activesupport`/`activemodel` 8.1.3.1 son las resueltas hoy, pero el constraint `>= 6.0` admite Rails 6/7/8 | declared | `Gemfile.lock` fija 8.1.3.1; el `.gemspec` no pone techo |
 | La gema no abre puertos ni corre procesos propios | declared | sin `config/`, sin `bin/` server, sin Railtie/Engine |
 
 ## 4. Cobertura y fronteras
