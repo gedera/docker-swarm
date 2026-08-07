@@ -4,11 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.11.0] — 2026-08-07
+
 ### Correcciones
 - **`Container.where(since:)` / `where(before:)` filtran de verdad, y `size` llega al Engine** (#35). Las dos claves son **filtros** de `GET /containers/json` según el spec v1.41 (`ContainerList`), no query params, pero el default de `Base.index_query_params` las ruteaba a la URL: el Engine **las ignoraba y devolvía la lista sin filtrar, sin ningún error** — resultado incorrecto silencioso. Y `size` (query param propio, pide el tamaño de los archivos del container) viajaba dentro de `?filters=` como filtro inválido. `Container` ahora declara `%i[all limit size]` — @Pslp
   - **Mismo bug en `Image`**, con la misma evidencia: `/images/json` declara `all` y `digests` como query params propios y lista `before`/`since` entre sus filtros. `Image` ahora declara `%i[all digests]`.
   - **Cambio de comportamiento observable:** `Container.where(since: id)` antes devolvía **todos** los containers y ahora filtra. Si algún consumidor compensaba filtrando en Ruby, el resultado no cambia; si dependía de recibir la lista completa, cambia.
   - `Base` **no** se toca: su default (`%i[all force limit since before]`) no matchea el listado de ningún recurso, pero limpiarlo convertiría no-ops silenciosos en filtros inválidos hacia el Engine para los 7 modelos que hoy no declaran lista propia. Queda como decisión aparte.
+
+### Mejoras internas
+- Bump `activesupport` y `activemodel` 8.1.3 → 8.1.3.1 (#25) — @dependabot. Las release notes de 8.1.3.1 declaran "No changes" para Active Support y Active Model: es el patch de la familia Rails, sin cambios propios en las dos gemas que la gema usa.
+- Bump `excon` 1.5.0 → 1.6.0 (#20) — @dependabot. Verificado con la suite completa (203 ejemplos, incluida la integración contra un swarm real), no solo con el subconjunto de CI.
+- Bump `actions/checkout` 6 → 7 en `main.yml` y `release.yml` (#14) — @dependabot.
+- `docs/topology/topology.md`: versiones resueltas de las tres dependencias runtime al día.
 
 ## [0.10.0] — 2026-08-05
 
