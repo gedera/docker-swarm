@@ -61,7 +61,10 @@ module DockerSwarm
         start: { method: :post, path: "containers/%<id>s/start" },
         stop: { method: :post, path: "containers/%<id>s/stop" },
         destroy: { method: :delete, path: "containers/%<id>s" },
-        logs: { method: :get, path: "containers/%<id>s/logs" }
+        logs: { method: :get, path: "containers/%<id>s/logs" },
+        update: { method: :post, path: "containers/%<id>s/update" },
+        restart: { method: :post, path: "containers/%<id>s/restart" },
+        stats: { method: :get, path: "containers/%<id>s/stats" }
       },
       images: {
         index: { method: :get, path: "images/json" },
