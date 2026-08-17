@@ -65,18 +65,49 @@ module DockerSwarm
     # booleano**: el Engine avisa por ahí cuando un límite no se pudo aplicar. Colapsarlo a
     # +true+ se comería justamente la señal.
     #
+    # 🚦 **Un payload vacío levanta, y por eso `save` sobre un container persistido NO funciona
+    # — falla fuerte.** {Concerns::Creatable#save} llama +update(registry_auth:)+ **sin
+    # atributos**, así que el payload queda en +{}+ y el Engine responde **+200 OK+ sin aplicar
+    # nada** (medido: body +{}+ → +{"Warnings":null}+, +Memory+ sin cambiar). Dejarlo pasar
+    # convertiría a +save+ en una promesa vacía: el caller asigna atributos, llama +save+, y
+    # los pierde sin un solo error.
+    #
+    # No se soporta el +save+ genérico a propósito: +POST /containers/{id}/update+ **no es
+    # "guardar el objeto"**, es un endpoint angosto de límites de recursos. Derivar el payload
+    # de los atributos locales exigiría una whitelist de los campos que Docker acepta, que
+    # driftea contra la API. Mejor decirlo que fingirlo.
+    #
     # @param new_attributes [Hash] límites de recursos en el shape de Docker (+Memory+,
     #   +NanoCpus+, +RestartPolicy+, …)
     # @param opts [Hash] atributos sueltos; +registry_auth+ y +registry_auth_from+ se descartan
+    # @raise [ArgumentError] si no queda ningún atributo para mandar
     # @return [Hash] cuerpo de la respuesta del Engine (+Warnings+)
     def update(new_attributes = {}, **opts)
-      opts = opts.except(:registry_auth, :registry_auth_from)
+      # El `except` va sobre el MERGE, no sólo sobre `opts`: un caller que pase
+      # `{registry_auth: "…", Memory: …}` como Hash **posicional** metería la credencial en el
+      # payload, y de ahí al log (`body=…`) — la misma fuga que arregló #24 por el otro lado.
+      payload = new_attributes.merge(opts).except(:registry_auth, :registry_auth_from,
+                                                  "registry_auth", "registry_auth_from")
 
-      Api.request(
+      if payload.empty?
+        raise ArgumentError,
+              "Container#update necesita al menos un atributo. Un payload vacío recibe 200 OK " \
+              "del Engine y NO aplica nada. Si venís de `save`: los containers no soportan el " \
+              "save genérico — usá `update(\"Memory\" => …)` con los límites explícitos."
+      end
+
+      response = Api.request(
         action: self.class.routes[:update],
         arguments: { id: self.ID },
-        payload: new_attributes.merge(opts)
+        payload: payload
       )
+
+      # El estado local queda stale si no se recarga: el payload es **plano** (`Memory`) pero el
+      # objeto lo tiene anidado (`HostConfig.Memory`), así que un `assign_attributes` —lo que
+      # hace {Concerns::Updatable}— crearía un atributo fantasma en vez de actualizar el real.
+      # `reload` trae la forma correcta del Engine; es el mismo cierre que usa `save` al crear.
+      reload
+      response
     end
 
     # Reinicia el container (+POST /containers/{id}/restart+).
