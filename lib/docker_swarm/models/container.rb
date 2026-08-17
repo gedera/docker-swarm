@@ -91,9 +91,9 @@ module DockerSwarm
 
       if payload.empty?
         raise ArgumentError,
-              "Container#update necesita al menos un atributo. Un payload vacío recibe 200 OK " \
-              "del Engine y NO aplica nada. Si venís de `save`: los containers no soportan el " \
-              "save genérico — usá `update(\"Memory\" => …)` con los límites explícitos."
+              "Container#update requires at least one attribute. An empty payload gets a 200 OK " \
+              "from the Engine and applies nothing. Coming from `save`? Containers do not support " \
+              "the generic save: use `update(\"Memory\" => ...)` with explicit resource limits."
       end
 
       response = Api.request(
