@@ -1,6 +1,7 @@
 # Dependencias consumidas — docker-swarm
 
 > meta: artefacto · RFC-018 · generado arch-structure + enriquecido arch-enrich · anclado a `v0.10.0` · cobertura: superficie del Docker Engine API consumida por la gema (`api.rb` ENDPOINTS + `connection.rb`); §c/§e enriquecidas 1/1
+> · refresh #39 (3 endpoints nuevos de containers: `update`/`restart`/`stats`; el ancla sigue en `v0.10.0` — el re-anclaje va con la release 0.12.0, #40)
 
 ## 1. Resumen
 
@@ -54,6 +55,9 @@ Subset que la gema invoca, derivado de `Api::ENDPOINTS` (`api.rb:5-72`). `destin
 | containers | start / stop | `POST containers/%<id>s/start`, `POST containers/%<id>s/stop` | — / — |
 | containers | destroy | `DELETE containers/%<id>s` | — / — |
 | containers | logs | `GET containers/%<id>s/logs` | `?stdout/stderr/...` / stream multiplexado (demux en el cliente) |
+| containers | update | `POST containers/%<id>s/update` | payload de límites de recursos, **sin `?version=`** (eso es de services) / `{Warnings}` |
+| containers | restart | `POST containers/%<id>s/restart` | `?t=` opcional (segundos antes de matar) / — |
+| containers | stats | `GET containers/%<id>s/stats` | **`?stream=false` obligatorio** / Hash de métricas |
 | images | index | `GET images/json` | — / array |
 | images | show | `GET images/%<id>s/json` | — / Hash |
 | images | pull | `POST images/create?fromImage=<ref>` | header `X-Registry-Auth` (opcional, registry privado) / stream NDJSON de progreso |

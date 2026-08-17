@@ -1,6 +1,7 @@
 # Glosario — docker-swarm
 
 > meta: artefacto · RFC-009 · generado dev-enrich · anclado a `v0.9.0` · cobertura: completo inicial (primitivas Docker + arquitectura interna); no se acrecienta sin tocar el flujo/concepto
+> · refresh #39 (la superficie que expone la gema para Container; el ancla sigue en `v0.9.0` — el re-anclaje va con la release 0.12.0, #40)
 
 ## 1. Resumen
 
@@ -25,7 +26,7 @@ Unidad de ejecución de un Service en un Node específico. Read-only: las tasks 
 
 ## Container
 
-Container Docker standalone (no Swarm). La gema expone create/start/stop/destroy/logs. La creación estuvo fuera de scope en F1 —el caso de uso primario de la gema es Swarm— y entró con ADR-025 cláusula 1: operar datos on-host durante una migración necesita un **helper container efímero** con nombre determinista, que es lo que habilita adoptarlo en un reintento en vez de duplicarlo.
+Container Docker standalone (no Swarm). La gema expone create/start/stop/restart/stats/update/destroy/logs. La creación estuvo fuera de scope en F1 —el caso de uso primario de la gema es Swarm— y entró con ADR-025 cláusula 1: operar datos on-host durante una migración necesita un **helper container efímero** con nombre determinista, que es lo que habilita adoptarlo en un reintento en vez de duplicarlo.
 **Binding:** [`DockerSwarm::Container`](../../lib/docker_swarm/models/container.rb)
 
 ## Image
