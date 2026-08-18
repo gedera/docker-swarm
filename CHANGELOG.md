@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.12.0] — 2026-08-18
+
+### Nuevas funcionalidades
+- **`Container` gana `#update`, `#restart` y `#stats`** (#39). Las tres faltaban, y `Base#method_missing` hacía que la ausencia **no se notara**: devolvía `nil` sin levantar y `respond_to?` decía `true`, así que un consumidor no podía distinguir *"se hizo"* de *"no existe la implementación"*. Aguas abajo eso salía como `200 OK` con cuerpo nulo (`sequre/box_cluster_manager#43`) — @gedera
+  - **`#stats` fuerza `stream: false`, y eso es lo que hace que el método vuelva.** El endpoint streamea por default: medido contra un Engine **29.7.2**, sin ese parámetro emite un objeto por segundo y **la conexión no cierra**. En una llamada RPC cuelga, y el modo de falla no es un error sino una espera. El parámetro se **mergea** en vez de reemplazarse —a diferencia de `Loggable#logs`—, así que un caller que pasa su propio hash cambia qué mide, no se queda esperando; `stats(stream: true)` sigue disponible a propósito.
+  - **`#restart(timeout: nil)`** pega al endpoint real. **No** copia a `Service#restart`, que simula el reinicio incrementando `ForceUpdate` *porque los services de Swarm no tienen endpoint de restart*; los containers sí. Sin `timeout` no se manda `?t=`, que **no** es lo mismo que mandar `0`.
+  - **`#update` NO usa `Concerns::Updatable`.** Ese concern manda `?version=<Version.Index>` para la concurrencia optimista de *services*; el update de un container es otro endpoint —límites de recursos— que no tiene ese parámetro y lo **ignoraría en silencio**. Devuelve el **cuerpo** del Engine (`Warnings`), no un booleano: ahí avisa cuando un límite no se pudo aplicar. Y hace `reload` en vez de `assign_attributes`, porque el payload es plano (`Memory`) y el objeto lo tiene anidado (`HostConfig.Memory`) — asignarlo crearía un atributo fantasma.
+  - `Api::ENDPOINTS[:containers]` pasa de 7 a 10 rutas.
+
+### Cambios de comportamiento
+- **`save` sobre un `Container` ya persistido ahora levanta `ArgumentError`; antes devolvía `nil`** (#39). `Concerns::Creatable#save` llama `update(registry_auth:)` **sin atributos** cuando el objeto está persistido, así que el payload quedaba vacío — y el Engine **acepta el body vacío respondiendo `200 OK` sin aplicar nada** (medido). O sea que `c.Memory = X; c.save` perdía el cambio sin un solo error. **El `save` genérico no se soporta a propósito:** `POST /containers/{id}/update` no es *"guardar el objeto"*, y derivar el payload de los atributos locales exigiría una whitelist de campos que driftea contra la API. El mensaje del error redirige a `update("Memory" => …)`.
+  - **Alcance verificado antes de tomar la decisión:** ningún consumidor del fleet ni ningún spec de la gema llama `.save` sobre un container. Para el resto de los modelos no cambia nada — @gedera
+
+### Seguridad
+- **`Container#update` descarta `registry_auth`/`registry_auth_from` sobre el hash ya mergeado**, no sólo sobre los kwargs (#39). Una credencial pasada en el hash **posicional** habría viajado en el payload al Engine y aparecido en el log de `request_success` (`body=…`). Es la misma clase de fuga que corrigió #24 por el otro lado, en el camino nuevo — @gedera
+
+### Documentación
+- Seis capas movidas con la superficie nueva: `interface`, `consumed` (3 endpoints), `test`, `glossary`, `behavior` (**flujo 3.13**: el payload vacío que el Engine acepta, con la rama `save` → `ArgumentError`) y `errors` §4 (el tercer sitio que eleva `ArgumentError`). Los compuestos (`README.md`, `skill/SKILL.md`, el stanza de `AGENTS.md`) reindexados, con el conteo de flujos **12 → 13** — @gedera
+- `docs/consumed/` §c dejaba de ser cierta como generalización: la frase del `?version=` se escribió para `Service#update` y ahora hay un `update` que **no** lo lleva. Sujeto calificado — @gedera
+- `docs/release/` §a: el campo `versión actual` venía **stale en `0.10.0`** con la gema ya en `0.11.0`. Corregido, y declarado que a ese campo lo invalida **todo** release por construcción — @gedera
+
+
 ## [0.11.0] — 2026-08-07
 
 ### Correcciones
