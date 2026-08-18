@@ -1,6 +1,6 @@
 # Comportamiento — docker-swarm
 
-> meta: artefacto · RFC-007 · generado dev-enrich · anclado a `v0.10.0` · cobertura: 12 flujos load-bearing (8 backfill inicial + 4 nuevos: auth de registry privado, `Image.pull` síncrono, `Container.create`, partición query params/filters del listado)
+> meta: artefacto · RFC-007 · generado dev-enrich · anclado a `v0.10.0` · cobertura: 13 flujos load-bearing (8 backfill inicial + 5 nuevos: auth de registry privado, `Image.pull` síncrono, `Container.create`, partición query params/filters del listado, `Container#update`/`#stats`) · refresh #39 (flujo 3.13: el payload vacío que el Engine acepta con 200, y el cuelgue de `stats`; el ancla sigue en `v0.10.0` — el re-anclaje va con la release 0.12.0, #40)
 
 ## 1. Resumen
 
@@ -8,7 +8,7 @@ Flujos de ejecución load-bearing de `docker-swarm`: cómo se materializan en ru
 
 ## 2. Cobertura declarada
 
-### Documentados (12)
+### Documentados (13)
 
 1. `Service.create` + reload
 2. `Service.update` con `Version.Index`
@@ -22,6 +22,7 @@ Flujos de ejecución load-bearing de `docker-swarm`: cómo se materializan en ru
 10. `Image.pull` síncrono (stream NDJSON → error tipado → resultado explícito)
 11. `Container.create` con nombre por query string (`create_query_params`)
 12. `Model.where` — partición query params propios vs. `?filters=` (`index_query_params`)
+13. `Container#update` — el payload vacío que el Engine acepta (y `#stats`, que cuelga en vez de fallar)
 
 ### No documentados (ausencia ≠ inexistencia, RFC-007)
 
@@ -355,9 +356,48 @@ flowchart TD
 - **Las claves se matchean como símbolos.** `where("status" => true)` cae en `docker_filters` (`slice(:status)` no matchea la string). Comportamiento preexistente y común a todos los query params del listado, no introducido por `:status`.
 - Sin filtros no hay query: `all` manda `query_params: {}` — el listado por default no cambió.
 
+### 3.13 `Container#update` — el payload vacío que el Engine acepta
+
+`POST /containers/{id}/update` **no es "guardar el objeto"**: es un endpoint angosto de límites de recursos, y **acepta un body vacío respondiendo `200 OK` sin aplicar nada** (medido contra Engine 29.7.2: body `{}` → `{"Warnings":null}`, `Memory` sin cambiar).
+
+Eso importa porque `Concerns::Creatable#save` **llama a `update`** cuando el objeto ya está persistido, y sin atributos. La cadena completa deja el payload en `{}`, así que un `save` se llevaría los cambios locales sin un solo error — el mismo modo de falla silencioso de §3.11, por la otra puerta.
+
+```mermaid
+sequenceDiagram
+    actor Caller
+    participant Container as DockerSwarm::Container
+    participant Api
+    participant Docker
+
+    alt save sobre un objeto persistido
+        Caller->>Container: c.Memory = 128.MB; c.save
+        Container->>Container: Creatable#save → persisted? → update(registry_auth: nil)
+        Container->>Container: {}.merge({registry_auth: nil}).except(:registry_auth, …) → {}
+        Container-->>Caller: ArgumentError ("requires at least one attribute")
+        Note over Container,Docker: NO se emite request: el 200 no-op nunca ocurre
+    else update con límites explícitos
+        Caller->>Container: c.update("Memory" => 134217728)
+        Container->>Container: merge + except → payload no vacío
+        Note over Container,Api: sin ?version= — eso es de Service#update
+        Container->>Api: request(:update, payload:)
+        Api->>Docker: POST /containers/{id}/update
+        Docker-->>Api: 200 { Warnings: … }
+        Api-->>Container: { Warnings: … }
+        Container->>Container: reload
+        Container-->>Caller: { Warnings: … }
+    end
+```
+
+**Notas load-bearing:**
+- **No usa `Concerns::Updatable`.** Ese concern manda `?version=<Version.Index>` para la concurrencia optimista de *services*; el update de un container no tiene ese parámetro y el Engine lo **ignora en silencio**. Ver la calificación del sujeto en `docs/consumed/docker-engine-api.md` §c.
+- **Devuelve el cuerpo, no un booleano.** El Engine avisa por `Warnings` cuando un límite no se pudo aplicar; colapsarlo a `true` se comería la señal. Es una asimetría deliberada con `#start`/`#stop` (§3.7), que sí devuelven `true`.
+- **`reload`, y no `assign_attributes`** como hace `Updatable`: el payload es **plano** (`Memory`) y el objeto lo tiene **anidado** (`HostConfig.Memory`), así que asignarlo crearía un atributo fantasma en vez de actualizar el real.
+- **El `except` va sobre el merge**, no sólo sobre los kwargs: una credencial pasada en el hash **posicional** llegaría al payload y de ahí al log (`body=…`).
+- **`#stats` comparte la forma del problema**, con otra cara: su default (`stream=true`) no falla, **cuelga** — la conexión queda abierta emitiendo un objeto por segundo. Por eso el método fuerza `stream: false` **mergeando** (no reemplazando como `Loggable#logs` en §3.8): un caller que pasa su propio hash cambia qué mide, no se queda esperando para siempre.
+
 ## 4. Cobertura y fronteras
 
-- **Cobertura (RFC-007 backfill on-demand + incremental):** 8 flujos load-bearing en el backfill inicial + 2 agregados con el soporte de auth de registry privado (auth de registry privado, `Image.pull` síncrono) + 1 con el `create` de containers + 1 con la partición query params/filters del listado = 12. Esta gema es chica; el backfill completo era factible y se hizo, y a partir de ahí se acreta por PR.
+- **Cobertura (RFC-007 backfill on-demand + incremental):** 8 flujos load-bearing en el backfill inicial + 2 agregados con el soporte de auth de registry privado (auth de registry privado, `Image.pull` síncrono) + 1 con el `create` de containers + 1 con la partición query params/filters del listado + 1 con `Container#update`/`#stats` (#39) = 13. Esta gema es chica; el backfill completo era factible y se hizo, y a partir de ahí se acreta por PR.
 - **Frontera con glosario:** términos (Service, Spec, Version.Index, etc.) viven en [`docs/glossary/glossary.md`](../glossary/glossary.md). Esta capa documenta secuencias, no significado.
 - **Frontera con configuración:** `DockerSwarm.configure` es boot, no flujo de negocio. No se diagrama.
 - **No localizable / fuera de alcance:**

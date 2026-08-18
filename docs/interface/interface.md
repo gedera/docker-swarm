@@ -1,6 +1,7 @@
 # Interfaz — docker-swarm
 
 > meta: artefacto · RFC-004 · generado arch-structure · anclado a `v0.10.0` · cobertura: API Ruby pública de la gema (`lib/docker_swarm/**`); símbolos internos marcados en §4
+> · refresh #39 (superficie de `Container`: `#restart`/`#stats`/`#update`; el ancla sigue en `v0.10.0` — el re-anclaje va con la release 0.12.0, #40)
 
 ## 1. Resumen
 
@@ -80,7 +81,7 @@ Inventario completo de opciones: [`docs/config/configuracion.md`](../config/conf
 | `DockerSwarm::Service` | clase < Base | Creatable, Updatable, Deletable, Loggable; `#restart` (incrementa `TaskTemplate.ForceUpdate`); `create`/`update` aceptan `registry_auth:` (+ `update`: `registry_auth_from:`) para auth de registry privado; `.index_query_params` agrega `:status` → `where(status: true)` puebla `ServiceStatus` (`RunningTasks`/`DesiredTasks`/`CompletedTasks`), único lugar donde el Engine publica el deseado de un service `global` |
 | `DockerSwarm::Node` | clase < Base | Updatable, Deletable (sin `create`: los nodos se unen fuera de la gema) |
 | `DockerSwarm::Task` | clase < Base | Loggable (read-only; generadas por el orquestador) |
-| `DockerSwarm::Container` | clase < Base | Creatable, Deletable, Loggable; `#start`, `#stop`; `.create_query_params == %w[name]` (el Engine toma el nombre por query string — en el body lo descarta en silencio y el container nace con nombre aleatorio). El `create` **no** es gap intencional desde ADR-025 cláusula 1; `.index_query_params == %i[all limit size]` — `since`/`before` son **filtros** de `/containers/json`, no query params (#35) |
+| `DockerSwarm::Container` | clase < Base | Creatable, Deletable, Loggable; `#start`, `#stop`, `#restart(timeout: nil)`, `#stats(query_params = {})`, `#update(attrs = {}, **opts)` (#39). **`#update` NO usa `Concerns::Updatable`**: ese concern manda `?version=` para la concurrencia optimista de *services*, y el update de un container es otro endpoint (límites de recursos) sin ese param. Devuelve el cuerpo del Engine (`Warnings`), **no** un booleano, y `reload`ea; **levanta `ArgumentError` con payload vacío**, así que `save` sobre un container persistido falla fuerte en vez de postear `{}` y perder los cambios en silencio. **`#stats` fuerza `stream: false`** — con el default el endpoint streamea y la llamada nunca vuelve; `.create_query_params == %w[name]` (el Engine toma el nombre por query string — en el body lo descarta en silencio y el container nace con nombre aleatorio). El `create` **no** es gap intencional desde ADR-025 cláusula 1; `.index_query_params == %i[all limit size]` — `since`/`before` son **filtros** de `/containers/json`, no query params (#35) |
 | `DockerSwarm::Image` | clase < Base | Deletable + `.pull(image_reference, registry_auth: nil)`. **NO** es Creatable (`Image.create` retirado sin alias). `.pull` = pull explícito síncrono: consume el stream NDJSON hasta EOF, eleva `DockerSwarm::Error` ante frame `error`/`errorDetail`, retorna `{ status: :pulled, image_ref:, digest? }` (sin `find` posterior); `.index_query_params == %i[all digests]` — `since`/`before` son **filtros** de `/images/json`, no query params (#35) |
 | `DockerSwarm::Network` | clase < Base | Creatable, Updatable, Deletable |
 | `DockerSwarm::Volume` | clase < Base | Creatable, Deletable; `.root_key = "Volumes"` (respuesta wrapped) |

@@ -1,6 +1,7 @@
 # Test — docker-swarm
 
 > meta: artefacto · RFC-013 · generado arch-structure + enriquecido arch-enrich · anclado a `v0.10.0` · cobertura: estructura de la suite (`spec/`, `.github/workflows/main.yml`); §e enriquecida, §f enriquecida, §g `unknown` (sin incidentes registrados), §h enriquecida
+> · refresh #39 (cobertura de `update`/`restart`/`stats`, unit + integration; el ancla sigue en `v0.10.0` — el re-anclaje va con la release 0.12.0, #40)
 
 ## 1. Resumen
 
@@ -50,11 +51,12 @@ Ninguna. No hay `SimpleCov`/`.simplecov` ni umbral declarado en el repo (verific
 
 **Cubierto (unit, con mocks):**
 - Mapeo de errores HTTP → excepción: `error_handler_spec` (subset de status verificado: 200, 404, 429, 500 — no los 14).
-- Modelos con métodos propios: `service` (incl. lógica de update/version), `node`, `task`, `container` (start/stop), `network`, `base` (accessors dinámicos, `assign_attributes`/`Spec` merge).
+- Modelos con métodos propios: `service` (incl. lógica de update/version), `node`, `task`, `container` (start/stop/restart/stats/update), `network`, `base` (accessors dinámicos, `assign_attributes`/`Spec` merge).
 - CRUD genérico de `config`, `secret`, `volume`: vía `shared_crud_spec` (`it_behaves_like "a crud resource"`) — no tienen spec dedicado pero **sí** están cubiertos (create/find/destroy). `image` salió del CRUD genérico (su `create` era un pull) → tiene spec propio (abajo).
 - `image`: `image_spec` (dedicado) — `Image.pull` (stream NDJSON, extracción de digest del frame `Digest:`, error tipado ante `error`/`errorDetail`, forma polimórfica del body) + `Deletable` y listado.
 - Auth de registry privado: `registry_auth_spec` (helper `RegistryAuth`: exclusión mutua `registry_auth`/`registry_auth_from`, enum del `from`, traducción a header/query) + bloque registry-auth en `service_spec` (create/update, no-exposición de la credencial en logs).
 - Partición query params propios vs. `?filters=` del listado (`index_query_params`): `base_spec` (default, override, partición mixta), `service_spec` (`status: true` → query param; `ServiceStatus` expuesto y tolerancia a su ausencia), `container_spec` (**regresión**: `status` sigue viajando como filtro; y #35: los tres query params de `ContainerList`, `since` ruteado a filtros, `size` a la URL, `force` ausente), `image_spec` (#35: `%i[all digests]`, `since` a filtros, `digests` a la URL). Integration: `services_spec` verifica contra el daemon que `ServiceStatus` aparece **solo** con `status: true`, y un `context` en modo **`global`** pinnea el caso que justifica la feature — `DesiredTasks` legible donde `Spec.Mode.Replicated` no existe. Ese context es el que vuelve necesario el poll del helper `listed_with_status`: en un global el deseado arranca en 0 y el Engine lo completa después (~1s), así que la condición de corte es `DesiredTasks.positive?`, no `ServiceStatus.present?`.
+- Superficie de `Container` que faltaba (#39): `container_spec` cubre `restart` (pega al endpoint real, **no** simula con `ForceUpdate` como `Service`; `t` sólo si le pasan `timeout`), `stats` (**fuerza `stream: false`** — si ese ejemplo se cae, el método deja de volver; y **mergea** en vez de reemplazar, para que un caller no se cuelgue sin querer) y `update` (sin `?version=`; devuelve el cuerpo y no un booleano; `reload`ea; **levanta con payload vacío**, que es lo que hace que `save` sobre un persistido falle fuerte en vez de postear `{}`; descarta `registry_auth` tanto como kwarg como clave String del hash posicional). Integration: `containers_spec` corre los tres contra el daemon — **`stats` bajo `Timeout.timeout(15)`, que es lo único que un unitario no puede cubrir** (mockeando `Api.request` se verifica que mandamos `stream: false`, no que eso evite el cuelgue), `restart` comparando `StartedAt`, y `update` verificando el límite en el objeto local **y** en el Engine.
 - Infra de transporte: `api_spec`, `connection_spec`, `configuration_spec`, `log_helper_spec`, los 4 middleware specs.
 - `swarm`, `system` (singletons): `swarm_spec`, `system_spec`.
 

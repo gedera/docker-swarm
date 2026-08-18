@@ -45,5 +45,114 @@ module DockerSwarm
       Api.request(action: self.class.routes[:stop], arguments: { id: self.ID })
       true
     end
+
+    # Actualiza los límites de recursos del container (+POST /containers/{id}/update+).
+    #
+    # ⚠️ **NO usa {Concerns::Updatable}, y no es un olvido.** Ese concern está escrito para
+    # services de Swarm: manda +?version=<Version.Index>+ para el control de concurrencia
+    # optimista y serializa con +payload_for_docker+. El update de un **container** no tiene
+    # +version+ — es otro endpoint con otra semántica (cpu, memoria, reinicio) — así que
+    # incluirlo mandaría un query param que el Engine **ignora en silencio**.
+    #
+    # 🚦 **La firma absorbe kwargs a propósito.** {Concerns::Creatable#save} llama
+    # +update(registry_auth:)+ cuando el objeto ya está persistido; con una firma
+    # +update(new_attributes = {})+ ese kwarg se convierte en Hash posicional (Ruby 3) y
+    # terminaría **posteado como atributo**: +{"registry_auth": null}+ hacia el Engine, sin
+    # error. Los dos de registry se descartan acá porque son cosa de +Service+ (header
+    # +X-Registry-Auth+ / query +registryAuthFrom+); un container no autentica en su update.
+    #
+    # Devuelve el cuerpo de la respuesta —Docker responde +{"Warnings": [...]}+— y **no un
+    # booleano**: el Engine avisa por ahí cuando un límite no se pudo aplicar. Colapsarlo a
+    # +true+ se comería justamente la señal.
+    #
+    # 🚦 **Un payload vacío levanta, y por eso `save` sobre un container persistido NO funciona
+    # — falla fuerte.** {Concerns::Creatable#save} llama +update(registry_auth:)+ **sin
+    # atributos**, así que el payload queda en +{}+ y el Engine responde **+200 OK+ sin aplicar
+    # nada** (medido: body +{}+ → +{"Warnings":null}+, +Memory+ sin cambiar). Dejarlo pasar
+    # convertiría a +save+ en una promesa vacía: el caller asigna atributos, llama +save+, y
+    # los pierde sin un solo error.
+    #
+    # No se soporta el +save+ genérico a propósito: +POST /containers/{id}/update+ **no es
+    # "guardar el objeto"**, es un endpoint angosto de límites de recursos. Derivar el payload
+    # de los atributos locales exigiría una whitelist de los campos que Docker acepta, que
+    # driftea contra la API. Mejor decirlo que fingirlo.
+    #
+    # @param new_attributes [Hash] límites de recursos en el shape de Docker (+Memory+,
+    #   +NanoCpus+, +RestartPolicy+, …)
+    # @param opts [Hash] atributos sueltos; +registry_auth+ y +registry_auth_from+ se descartan
+    # @raise [ArgumentError] si no queda ningún atributo para mandar
+    # @return [Hash] cuerpo de la respuesta del Engine (+Warnings+)
+    def update(new_attributes = {}, **opts)
+      # El `except` va sobre el MERGE, no sólo sobre `opts`: un caller que pase
+      # `{registry_auth: "…", Memory: …}` como Hash **posicional** metería la credencial en el
+      # payload, y de ahí al log (`body=…`) — la misma fuga que arregló #24 por el otro lado.
+      payload = new_attributes.merge(opts).except(:registry_auth, :registry_auth_from,
+                                                  "registry_auth", "registry_auth_from")
+
+      if payload.empty?
+        raise ArgumentError,
+              "Container#update requires at least one attribute. An empty payload gets a 200 OK " \
+              "from the Engine and applies nothing. Coming from `save`? Containers do not support " \
+              "the generic save: use `update(\"Memory\" => ...)` with explicit resource limits."
+      end
+
+      response = Api.request(
+        action: self.class.routes[:update],
+        arguments: { id: self.ID },
+        payload: payload
+      )
+
+      # El estado local queda stale si no se recarga: el payload es **plano** (`Memory`) pero el
+      # objeto lo tiene anidado (`HostConfig.Memory`), así que un `assign_attributes` —lo que
+      # hace {Concerns::Updatable}— crearía un atributo fantasma en vez de actualizar el real.
+      # `reload` trae la forma correcta del Engine; es el mismo cierre que usa `save` al crear.
+      reload
+      response
+    end
+
+    # Reinicia el container (+POST /containers/{id}/restart+).
+    #
+    # ⚠️ **No se parece a {Service#restart}, y está bien.** El hermano simula el restart
+    # incrementando +ForceUpdate+ **porque los services de Swarm no tienen endpoint de
+    # restart**. Los containers sí lo tienen, así que copiar ese workaround sería arrastrar
+    # una vuelta que acá no hace falta.
+    #
+    # @param timeout [Integer, nil] segundos a esperar antes de matar el proceso (+t+ de
+    #   Docker). +nil+ deja el default del Engine, que **no** es lo mismo que mandar +0+
+    #   (eso mataría sin gracia).
+    # @return [Boolean] true si el Engine aceptó el reinicio
+    def restart(timeout: nil)
+      Api.request(
+        action: self.class.routes[:restart],
+        arguments: { id: self.ID },
+        query_params: timeout.nil? ? {} : { t: timeout }
+      )
+      true
+    end
+
+    # Métricas de uso del container (+GET /containers/{id}/stats+).
+    #
+    # 🚦 **`stream: false` NO es un default cómodo: es lo que hace que el método vuelva.**
+    # El endpoint streamea por default —+stream=true+— y la conexión queda abierta emitiendo
+    # un objeto por segundo. Medido contra un Engine **29.7.2**: sin el parámetro, 6 objetos
+    # en 6 s y la conexión **no cierra** (+exit 28+ de curl); con +stream=false+, un objeto y
+    # cierra en 1 s. En una llamada RPC el default **cuelga** — y el modo de falla no es un
+    # error, es una espera. Mismo patrón que ADR-027: el default de Docker no es el que sirve.
+    #
+    # Por eso el parámetro se **mergea** en vez de reemplazarse, que es como lo hace
+    # {Concerns::Loggable#logs}: ahí un caller que pasa su propio hash sólo cambia qué streams
+    # lee; acá lo dejaría colgado. Se puede pisar a propósito (+stats(stream: true)+), pero no
+    # por accidente.
+    #
+    # @param query_params [Hash] parámetros extra (+one-shot+, …). +stream+ va en +false+
+    #   salvo que se lo pise explícitamente.
+    # @return [Hash] snapshot de métricas parseado
+    def stats(query_params = {})
+      Api.request(
+        action: self.class.routes[:stats],
+        arguments: { id: self.ID },
+        query_params: { stream: false }.merge(query_params)
+      )
+    end
   end
 end

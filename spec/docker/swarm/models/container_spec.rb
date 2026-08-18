@@ -120,4 +120,135 @@ RSpec.describe DockerSwarm::Container do
       expect(container.logs).to eq("container logs")
     end
   end
+
+  # --- #39 · update / restart / stats -----------------------------------------
+  #
+  # Las tres faltaban y `Base#method_missing` hacía que la ausencia NO se notara:
+  # devolvía `nil` sin levantar, y `respond_to?` decía `true` (ver #42). Aguas abajo
+  # eso salía como `200 OK` con cuerpo nulo.
+
+  describe "#restart" do
+    it "pega al endpoint de restart y NO simula con ForceUpdate como Service" do
+      expect(DockerSwarm::Api).to receive(:request).with(
+        hash_including(action: described_class.routes[:restart], arguments: { id: "container-123" })
+      ).and_return(nil)
+
+      expect(container.restart).to be true
+    end
+
+    it "manda t sólo si le pasan timeout" do
+      expect(DockerSwarm::Api).to receive(:request).with(
+        hash_including(query_params: { t: 5 })
+      ).and_return(nil)
+
+      container.restart(timeout: 5)
+    end
+
+    it "no manda t cuando es nil: el default del Engine no es lo mismo que t=0" do
+      expect(DockerSwarm::Api).to receive(:request).with(
+        hash_including(query_params: {})
+      ).and_return(nil)
+
+      container.restart
+    end
+  end
+
+  describe "#stats" do
+    # 🚦 Si este spec se cae, el método deja de volver. Medido contra un Engine 29.7.2:
+    # sin `stream=false` el endpoint emite un objeto por segundo y la conexión NO cierra
+    # (`exit 28` de curl). En una llamada RPC eso cuelga, y el modo de falla no es un
+    # error sino una espera.
+    it "fuerza stream: false — sin eso el endpoint streamea y la llamada nunca vuelve" do
+      expect(DockerSwarm::Api).to receive(:request).with(
+        hash_including(action: described_class.routes[:stats], query_params: { stream: false })
+      ).and_return({ "memory_stats" => {} })
+
+      container.stats
+    end
+
+    it "MERGEA los params en vez de reemplazarlos, así un caller no se queda colgado sin querer" do
+      expect(DockerSwarm::Api).to receive(:request).with(
+        hash_including(query_params: { stream: false, "one-shot" => true })
+      ).and_return({})
+
+      container.stats("one-shot" => true)
+    end
+
+    it "deja pisar stream a propósito" do
+      expect(DockerSwarm::Api).to receive(:request).with(
+        hash_including(query_params: { stream: true })
+      ).and_return({})
+
+      container.stats(stream: true)
+    end
+
+    it "devuelve el payload y no un booleano" do
+      allow(DockerSwarm::Api).to receive(:request).and_return({ "memory_stats" => { "usage" => 42 } })
+
+      expect(container.stats.dig("memory_stats", "usage")).to eq(42)
+    end
+  end
+
+  describe "#update" do
+    let(:ok) { { "Warnings" => nil } }
+
+    before { allow(container).to receive(:reload) }
+
+    it "pega al endpoint de update SIN version: ese query param es de services, no de containers" do
+      expect(DockerSwarm::Api).to receive(:request) do |args|
+        expect(args[:action]).to eq(described_class.routes[:update])
+        expect(args[:query_params]).to be_nil
+        expect(args[:payload]).to eq("Memory" => 134_217_728)
+        ok
+      end
+
+      container.update("Memory" => 134_217_728)
+    end
+
+    it "devuelve el cuerpo del Engine y no true: ahí vienen los Warnings" do
+      allow(DockerSwarm::Api).to receive(:request).and_return("Warnings" => [ "no swap limit" ])
+
+      expect(container.update("Memory" => 1)).to eq("Warnings" => [ "no swap limit" ])
+    end
+
+    it "recarga el estado local, porque el payload es plano y el objeto lo tiene anidado" do
+      allow(DockerSwarm::Api).to receive(:request).and_return(ok)
+      expect(container).to receive(:reload)
+
+      container.update("Memory" => 1)
+    end
+
+    # Sin esto, `c.Memory = X; c.save` postea {} y pierde el cambio: el Engine responde
+    # 200 OK y no aplica nada (medido: body {} -> {"Warnings":null}, Memory sin cambiar).
+    it "levanta con payload vacío en vez de dejar que el Engine responda 200 sin hacer nada" do
+      expect(DockerSwarm::Api).not_to receive(:request)
+
+      expect { container.update }.to raise_error(ArgumentError, /at least one attribute/)
+    end
+
+    it "el save sobre un container persistido levanta: no se soporta el save genérico" do
+      expect(DockerSwarm::Api).not_to receive(:request)
+
+      expect { container.save }.to raise_error(ArgumentError, /generic save/)
+    end
+
+    # `Creatable#save` llama `update(registry_auth:)`. Con una firma sin **opts ese kwarg
+    # se vuelve Hash posicional en Ruby 3 y termina POSTEADO como atributo.
+    it "descarta registry_auth: es cosa de Service y no debe viajar en el payload" do
+      expect(DockerSwarm::Api).to receive(:request) do |args|
+        expect(args[:payload]).to eq("Memory" => 1)
+        ok
+      end
+
+      container.update({ "Memory" => 1 }, registry_auth: "SECRETO")
+    end
+
+    # Y si la credencial llega en el Hash POSICIONAL, el except tiene que alcanzarla igual:
+    # de ahí pasa al payload y al log (`body=…`). Misma fuga que arregló #24 por el otro lado.
+    it "descarta registry_auth aunque venga como clave String en el hash posicional" do
+      expect(DockerSwarm::Api).not_to receive(:request)
+
+      expect { container.update("registry_auth" => "SECRETO") }.to raise_error(ArgumentError)
+    end
+  end
 end

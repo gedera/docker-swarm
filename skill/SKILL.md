@@ -20,7 +20,7 @@ triggers:
   - "docker-swarm gem"
   - "Docker Engine API desde Ruby"
   - "Service.create / Service.update / Service.restart"
-  - "Container.create / Container.start / Container.stop"
+  - "Container.create / Container.start / Container.stop / Container.restart / Container.stats / Container.update"
   - "helper container efímero"
   - "logs de un servicio Docker"
   - "Version.Index"
@@ -61,7 +61,7 @@ Defaults son razonables: en local sin TLS, no necesitás bloque `configure`.
 | `Service` | `all(filters)`, `find(id)`, `where(filters)`, `create(attrs)` | `update(attrs)`, `restart`, `destroy`, `logs(query)`, `reload`, `persisted?`, `id` | CRUD completo + force-recreate de tasks; `create`/`update` aceptan `registry_auth:` (+ `update`: `registry_auth_from:`) para auth de registry privado; `where(status: true)` puebla `ServiceStatus` (único deseado legible de un service `global`) |
 | `Node` | `all(filters)`, `find(id)`, `where(filters)` | `update(attrs)`, `destroy` | No `create` (los nodos se unen fuera de la gema) |
 | `Task` | `all(filters)`, `find(id)`, `where(filters)` | `logs(query)`, `reload` | Read-only (generados por orquestador) |
-| `Container` | `all(filters)`, `find(id)`, `where(filters)`, `create(attrs)` | `start`, `stop`, `destroy`, `logs(query)` | `create` manda `name` por query string (`create_query_params`) — en el body Docker lo descarta en silencio |
+| `Container` | `all(filters)`, `find(id)`, `where(filters)`, `create(attrs)` | `start`, `stop`, `restart(timeout:)`, `stats(params)`, `update(attrs)`, `destroy`, `logs(query)` | `create` manda `name` por query string (`create_query_params`) — en el body Docker lo descarta en silencio. **`stats` fuerza `stream: false`**: con el default la llamada no vuelve. **`update` levanta con payload vacío**, así que `save` sobre un container persistido NO funciona: no se soporta el save genérico (#39) |
 | `Image` | `all(filters)`, `find(id)`, `pull(image_reference, registry_auth:)` | `destroy` | **No `create`** (retirado; `Image` ya no es Creatable). `pull` = pull explícito síncrono → `{status, image_ref, digest?}`; **soporta `X-Registry-Auth`** para registries privados |
 | `Network` | `all(filters)`, `find(id)`, `create(attrs)` | `update(attrs)`, `destroy` | CRUD completo |
 | `Volume` | `all(filters)`, `find(id)`, `create(attrs)` | `destroy` | No `update` (Docker no lo soporta). Respuesta wrapped vía `root_key = "Volumes"` |
