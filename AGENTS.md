@@ -18,7 +18,7 @@ Wayfinding in-repo de los artefactos de arquitectura (RFC-008 r2). Espejo del "�
 |---|---|---|---|
 | Datos | RFC-002 | — | `n/a` (gema sin DB) |
 | Glosario | RFC-009 | `docs/glossary/glossary.md` | completo |
-| Comportamiento | RFC-007 | `docs/behavior/behavior.md` | backfill on-demand + incremental (12 flujos) |
+| Comportamiento | RFC-007 | `docs/behavior/behavior.md` | backfill on-demand + incremental (13 flujos) |
 | Configuración | RFC-012 | `docs/config/configuracion.md` | inventario base (7 opciones, sin env vars) |
 | Interfaz | RFC-004 | `docs/interface/interface.md` | API Ruby pública (11 modelos + Base + concerns) |
 | Topología | RFC-006 | `docs/topology/topology.md` | 3 deps runtime + grafo de contexto |

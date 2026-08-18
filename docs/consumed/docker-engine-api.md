@@ -57,7 +57,7 @@ Subset que la gema invoca, derivado de `Api::ENDPOINTS` (`api.rb:5-72`). `destin
 | containers | logs | `GET containers/%<id>s/logs` | `?stdout/stderr/...` / stream multiplexado (demux en el cliente) |
 | containers | update | `POST containers/%<id>s/update` | payload de límites de recursos, **sin `?version=`** (eso es de services) / `{Warnings}` |
 | containers | restart | `POST containers/%<id>s/restart` | `?t=` opcional (segundos antes de matar) / — |
-| containers | stats | `GET containers/%<id>s/stats` | **`?stream=false` obligatorio** / Hash de métricas |
+| containers | stats | `GET containers/%<id>s/stats` | **`?stream=false` por default** (pisable explícitamente con `stats(stream: true)`; con el default del Engine la llamada **no vuelve**) / Hash de métricas |
 | images | index | `GET images/json` | — / array |
 | images | show | `GET images/%<id>s/json` | — / Hash |
 | images | pull | `POST images/create?fromImage=<ref>` | header `X-Registry-Auth` (opcional, registry privado) / stream NDJSON de progreso |
@@ -127,7 +127,7 @@ El daemon responde con status HTTP; `Middleware::ErrorHandler` los mapea a la je
 
 - `GET`/`DELETE`/`PUT` son seguros de reintentar: re-listar, re-borrar (404 → `nil` graceful) o re-actualizar produce el mismo estado final → la gema los reintenta automáticamente ante caída de socket.
 - `POST create` (services/networks/volumes/configs/secrets/containers) **no** se reintenta: un replay tras fallo parcial podría crear un recurso duplicado (el daemon no deduplica por nombre en todos los recursos). El caller decide qué hacer si un `create` falla por `Communication`.
-- `POST update`/`start`/`stop`/`restart` tampoco se reintentan (son POST); `update` además acarrea `?version=` → un replay con versión vieja daría 409 `Conflict`, no un duplicado.
+- `POST update`/`start`/`stop`/`restart` tampoco se reintentan (son POST). ⚠️ **El `?version=` es de `Service#update`, NO de containers**: ahí un replay con versión vieja daría 409 `Conflict` en vez de un duplicado. `Container#update` **no lo lleva** (#39) — es otro endpoint, de límites de recursos: un replay re-aplica el mismo límite, así que es idempotente en efecto. `GET stats` cae bajo la regla genérica de arriba (`IDEMPOTENT_METHODS`).
 - **Sin backoff** es aceptable acá: el socket Unix local rara vez está transitoriamente saturado; ante un daemon caído, 3 reintentos inmediatos fallan rápido y se propaga `Communication`.
 
 #### e. Degradación (si la dependencia cae)

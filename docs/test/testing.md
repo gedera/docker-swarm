@@ -51,7 +51,7 @@ Ninguna. No hay `SimpleCov`/`.simplecov` ni umbral declarado en el repo (verific
 
 **Cubierto (unit, con mocks):**
 - Mapeo de errores HTTP → excepción: `error_handler_spec` (subset de status verificado: 200, 404, 429, 500 — no los 14).
-- Modelos con métodos propios: `service` (incl. lógica de update/version), `node`, `task`, `container` (start/stop), `network`, `base` (accessors dinámicos, `assign_attributes`/`Spec` merge).
+- Modelos con métodos propios: `service` (incl. lógica de update/version), `node`, `task`, `container` (start/stop/restart/stats/update), `network`, `base` (accessors dinámicos, `assign_attributes`/`Spec` merge).
 - CRUD genérico de `config`, `secret`, `volume`: vía `shared_crud_spec` (`it_behaves_like "a crud resource"`) — no tienen spec dedicado pero **sí** están cubiertos (create/find/destroy). `image` salió del CRUD genérico (su `create` era un pull) → tiene spec propio (abajo).
 - `image`: `image_spec` (dedicado) — `Image.pull` (stream NDJSON, extracción de digest del frame `Digest:`, error tipado ante `error`/`errorDetail`, forma polimórfica del body) + `Deletable` y listado.
 - Auth de registry privado: `registry_auth_spec` (helper `RegistryAuth`: exclusión mutua `registry_auth`/`registry_auth_from`, enum del `from`, traducción a header/query) + bloque registry-auth en `service_spec` (create/update, no-exposición de la credencial en logs).
