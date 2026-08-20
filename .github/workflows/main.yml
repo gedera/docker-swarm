@@ -1,6 +1,8 @@
 name: Ruby
 
 on:
+  # Habilitado para correr los tests A MANO — ver el `if:` del paso.
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -26,6 +28,7 @@ jobs:
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
+        if: github.event_name == 'workflow_dispatch'
       - name: Run unit tests
         run: bundle exec rspec --tag ~type:integration
       - name: Run linter
