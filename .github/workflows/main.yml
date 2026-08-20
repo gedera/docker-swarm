@@ -28,8 +28,8 @@ jobs:
         with:
           ruby-version: ${{ matrix.ruby }}
           bundler-cache: true
-        if: github.event_name == 'workflow_dispatch'
       - name: Run unit tests
+        if: github.event_name == 'workflow_dispatch'
         run: bundle exec rspec --tag ~type:integration
       - name: Run linter
         run: bundle exec rubocop
